@@ -16,8 +16,8 @@ def capture_photo(cap):
     if not ret:
         raise RuntimeError("Failed to capture frame")
     
-    photos_dir = Path("captured_photos")
-    photos_dir.mkdir(exist_ok=True)
+    photos_dir = Path("../data/captured_photos")
+    photos_dir.mkdir(parents=True, exist_ok=True)
     
     timestamp = int(time.time())
     photo_path = photos_dir / f"photo_{timestamp}.jpg"
