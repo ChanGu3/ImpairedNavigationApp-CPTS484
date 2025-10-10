@@ -1,67 +1,90 @@
 import warnings
 import os
+from pathlib import Path
+from transformers import pipeline
+import transformers.utils.logging as logging
+from helper import render_results_in_image, summarize_predictions_natural_language
+from PIL import Image
+import pyttsx3
+import time
 
-# Suppress ALL warnings
 warnings.filterwarnings("ignore")
 os.environ['PYTHONWARNINGS'] = 'ignore'
-
-from helper import render_results_in_image, summarize_predictions_natural_language
-from transformers import pipeline
-from transformers.utils import logging
-from helper import ignore_warnings
-from PIL import Image
-import pyttsx3  # Windows TTS
-
-# Suppress transformers warnings
 logging.set_verbosity_error()
-ignore_warnings()
 
-# Load models
-print("Loading object detection model...")
-od_pipe = pipeline("object-detection", "facebook/detr-resnet-50")
-print("Model loaded successfully!")
+_od_pipe = None
 
-# Initialize Windows TTS
-print("Initializing text-to-speech...")
-tts_engine = pyttsx3.init()
-print("TTS ready!")
+def load_model():
+    global _od_pipe
+    if _od_pipe is None:
+        _od_pipe = pipeline("object-detection", "facebook/detr-resnet-50")
+    return _od_pipe
 
-# Process image
-image_path = 'legs-build-steps-wooden-staircase-first-person-view-legs-build-steps-wooden-staircase-first-person-view-219419838.jpg'
+def init_tts():
+    try:
+        test_tts = pyttsx3.init()
+        del test_tts
+        return True
+    except:
+        return False
 
-try:
-    # Load image
-    raw_image = Image.open(image_path)
+def get_latest_photo():
+    photos_dir = Path("captured_photos")
+    if not photos_dir.exists():
+        return None
     
-    # Run detection
-    results = od_pipe(raw_image)
+    latest_path = photos_dir / "latest.jpg"
+    if latest_path.exists():
+        return latest_path
+    return None
+
+def detect_and_save(image_path):
+    od_pipe = load_model()
     
-    # Print results
-    print(f"Detected {len(results)} objects:")
-    for obj in results:
-        print(f"- {obj['label']}: {obj['score']:.2f}")
+    # Load and process image
+    image = Image.open(image_path)
+    predictions = od_pipe(image)
     
-    # Generate natural language description
-    text_description = summarize_predictions_natural_language(results)
-    print(f"\nDescription: {text_description}")
+    # Create result image with bounding boxes
+    result_img = render_results_in_image(image, predictions)
     
-    # Create image with bounding boxes
-    processed_image = render_results_in_image(raw_image, results)
+    # Create description
+    description = summarize_predictions_natural_language(predictions)
     
     # Save result
-    processed_image.save('detection_result.png')
-    print("Result saved as 'detection_result.png'")
+    results_dir = Path("detection_results")
+    results_dir.mkdir(exist_ok=True)
     
-    # Display result
-    processed_image.show()
+    timestamp = int(time.time())
+    result_path = results_dir / f"result_{timestamp}.png"
+    result_img.save(result_path)
     
-    # Generate audio narration using Windows TTS
-    print("Playing audio narration...")
-    tts_engine.say(text_description)
-    tts_engine.runAndWait()
-    print("Audio narration completed!")
-    
-except FileNotFoundError:
-    print(f"Image not found: {image_path}")
-except Exception as e:
-    print(f"Error: {e}")
+    return result_img, description, result_path
+
+def play_audio(text):
+    try:
+        tts = pyttsx3.init()
+        tts.setProperty('rate', 150)
+        tts.setProperty('volume', 0.9)
+        tts.say(text)
+        tts.runAndWait()
+        del tts
+    except Exception as e:
+        print(f"Audio error: {e}")
+        print(f"Text was: {text}")
+
+def process_photo():
+    try:
+        photo_path = get_latest_photo()
+        if not photo_path:
+            return False, {"error": "No photo found"}
+        
+        result_img, description, result_path = detect_and_save(photo_path)
+        
+        return True, {
+            "image": result_img,
+            "description": description,
+            "result_path": result_path
+        }
+    except Exception as e:
+        return False, {"error": str(e)}
