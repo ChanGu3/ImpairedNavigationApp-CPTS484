@@ -29,7 +29,8 @@ def init_tts():
         return False
 
 def get_latest_photo():
-    photos_dir = Path("captured_photos")
+    # Use relative path from services folder to data folder
+    photos_dir = Path("../data/captured_photos")
     if not photos_dir.exists():
         return None
     
@@ -52,12 +53,15 @@ def detect_and_save(image_path):
     description = summarize_predictions_natural_language(predictions)
     
     # Save result
-    results_dir = Path("detection_results")
-    results_dir.mkdir(exist_ok=True)
+    results_dir = Path("../data/detection_results")
+    results_dir.mkdir(parents=True, exist_ok=True)
     
     timestamp = int(time.time())
     result_path = results_dir / f"result_{timestamp}.png"
+    latest_result_path = results_dir / "latest_result.png"
+    
     result_img.save(result_path)
+    result_img.save(latest_result_path)
     
     return result_img, description, result_path
 
