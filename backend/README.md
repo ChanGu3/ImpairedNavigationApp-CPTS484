@@ -5,7 +5,7 @@
 - Step 1: Install python
 - Step 2: Create python virtual environment in backend directory by doing it inside of that directory -> [ python -m venv "nameofenv" ]
   - (Note: this will generate a directory structure inside backend for env with name specified)
-- Step 3: Activate the virtual environment using the path from the directory structure if on windows -> [ .\nameofenv\Scripts\activate ]
+- Step 3: Activate the virtual environment using the path from the directory structure if on windows -> [ .\nameofenv\Scripts\activate ] || LINUX: [source .\nameofenv\bin\activate ]
   - (Note: otherwise use another process for activating the python virtual environment you can exit the environment by typing [ exit ] in the terminal)
 - Step 4: Install the current python package dependencies -> [ pip install -r requirements.txt ]
 - Step 5: Look at "Subsequent Usage" below
