@@ -12,6 +12,7 @@ type ContextDataType = {
 export const UserContext = createContext<ContextDataType|null>(null)
 
 export type UserDataType = {
+  id: number,
   email: string,
 	firstname: string,
 	lastname: string,

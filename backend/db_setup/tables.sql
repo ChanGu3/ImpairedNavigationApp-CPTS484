@@ -8,8 +8,8 @@ CREATE TABLE users (
 );
 
 CREATE TABLE caretaker_info (
-    caretaker_user_id INTEGER PRIMARY KEY NOT NULL,
-    impaired_user_id INTEGER KEY NOT NULL,
+    impaired_user_id INTEGER PRIMARY KEY NOT NULL,
+    caretaker_user_id INTEGER KEY NOT NULL,
     FOREIGN KEY(caretaker_user_id) REFERENCES users(id) ON DELETE CASCADE, 
     FOREIGN KEY(impaired_user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -38,7 +38,8 @@ CREATE TABLE past_trips (
 );
 
 CREATE TABLE activity (
-    impaired_user_id INTEGER PRIMARY KEY NOT NULL,
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    impaired_user_id INTEGER NOT NULL,
     notice_status TEXT NOT NULL CHECK (notice_status IN ('Good', 'Okay', 'Bad')), 
     small_description TEXT NOT NULL,
     notice_date TIMESTAMPTZ NOT NULL ,
@@ -48,14 +49,16 @@ CREATE TABLE activity (
 CREATE TABLE current_caretaker_conversation (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     caretaker_user_id INTEGER NOT NULL,
-    impaired_user_id INTEGER NOT NULL,
+    impaired_user_id INTEGER UNIQUE NOT NULL,
     FOREIGN KEY(caretaker_user_id) REFERENCES users(id) ON DELETE CASCADE, 
     FOREIGN KEY(impaired_user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE current_caretaker_conversation_messages (
-    ccc_id INTEGER PRIMARY KEY NOT NULL,
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    ccc_id INTEGER KEY NOT NULL,
     msg_ordered_number INTEGER NOT NULL,
     user_type TEXT NOT NULL CHECK (user_type IN ('impaired', 'caretaker')),
+    msg TEXT NOT NULL,
     FOREIGN KEY(ccc_id) REFERENCES current_caretaker_conversation(id) ON DELETE CASCADE
 );

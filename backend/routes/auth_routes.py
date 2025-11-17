@@ -1,4 +1,4 @@
-from flask import Blueprint, request, session
+from flask import Blueprint, request, session, g
 from services.database import database
 import json
 
@@ -7,6 +7,12 @@ auth_bp = Blueprint(
     __name__,        
     url_prefix='/auth'
 )
+
+@auth_bp.after_request
+def after_request(response):
+    if g.get("user_id") is not None:
+        ""
+    return response
 
 @auth_bp.post("/login")
 def login():
@@ -21,5 +27,7 @@ def login():
 
 @auth_bp.post("/logout")
 def logout():
+    g.user_id = session["user_id"];
     session.clear()
     return { "success": { "message": "successfully logged out" } }
+
