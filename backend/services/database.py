@@ -37,7 +37,7 @@ class database :
         return database.__create_json(user_data)
     
     @staticmethod
-    def get_user_id_if_exists(email, password):
+    def get_user_id_if_exists(email: str, password: str):
         db_conn = sqlite3.connect(db_path)
         db_conn.row_factory = sqlite3.Row
         cursor = db_conn.cursor()
@@ -46,7 +46,7 @@ class database :
             SELECT id
             FROM users
             WHERE email = ? AND pswd = ?
-        """, (email, password))
+        """, (email.lower(), password))
         
         user_id = cursor.fetchone()
         cursor.close()

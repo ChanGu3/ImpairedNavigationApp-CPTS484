@@ -9,6 +9,8 @@ user_bp = Blueprint(
 
 @user_bp.before_request
 def authorize():
+    print(session.get("user_id"))
+    
     if(session.get("user_id") is None):
         return { "error": { "message": "not logged in" } }, 401
     
