@@ -10,10 +10,9 @@ auth_bp = Blueprint(
 
 @auth_bp.post("/login")
 def login():
-    email = request.form.get("email")
-    password = request.form.get("password")
+    data_json = request.get_json();
     
-    row_data = database.get_user_id_if_exists(email, password)
+    row_data = database.get_user_id_if_exists(data_json['email'], data_json['password'])
     if ( row_data is None):
         return { "error": { "message": "credentials were incorrect" } }
     

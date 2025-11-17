@@ -7,6 +7,11 @@
 - Step 3: Make Sure Both Backend and Frontend are running for them to work correctly preferably backend first then frontend since frontend depends on backend for data
   - (Note: In the Theia application I created a test page on <http://localhost:8081/test> when running which will test the connection between backend and frontend if you have everything setup up correctly )
 
+## Two Hard Coded Accounts
+
+- [Impaired User]: (email: janedoe@fake.com), (password: password)
+- [Caretaker User]: (email: philjonas@fake.com), (password: password)
+
 ## Phase I
 
 [WRS Document](https://docs.google.com/document/d/1SKOx4pVtJpnDJBEPfgIDKMMI0HnByeWO/edit?usp=sharing&ouid=102567847160307486796&rtpof=true&sd=true)

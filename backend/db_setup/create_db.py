@@ -19,8 +19,9 @@ def setup_theia_db ():
             INSERT INTO users (email, pswd, firstname, lastname, user_type) 
             VALUES (?, ?, ?, ?, ?)
         """
-        cursor.execute(insert_user_query, ('JaneDoe@fake.com', 'password', 'Jane', 'Doe', 'impaired'))
-        cursor.execute(insert_user_query, ('PhilJonas@fake.com', 'password', 'Phil', 'Jonas', 'caretaker'))
+        
+        cursor.execute(insert_user_query, ('janedoe@fake.com', 'password', 'Jane', 'Doe', 'impaired'))
+        cursor.execute(insert_user_query, ('philjonas@fake.com', 'password', 'Phil', 'Jonas', 'caretaker'))
         cursor.close()
         #insert_past_trip_query = """
         #    INSERT INTO past_trips(impaired_user_id, destination_location, complete_date)

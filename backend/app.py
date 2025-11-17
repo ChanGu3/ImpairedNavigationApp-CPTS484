@@ -6,7 +6,13 @@ from flask_cors import CORS
 from routes.api_routes import api_bp
 
 app = Flask(__name__)
-CORS(app)
+CORS(
+    app,
+    supports_credentials=True,
+    origins=[
+        "http://localhost:8081",
+    ]
+    )
 
 app.secret_key = 'fake_key_seriously_its_fake'
 
