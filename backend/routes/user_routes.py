@@ -54,7 +54,7 @@ def get_user_status_by_id(user_id):
             else:
                 return { "status": { "inactive" } }
         
-    return { "error": { "message": "cannot access status of user if they exist" } }, 401
+    return { "error": { "message": "cannot access status of user if they exist" } }
 
 # makes sure user is logged in before accessing data
 @user_bp.before_request
@@ -84,9 +84,12 @@ def update_data():
     if("firstname" in data):
         dataList.append(("firstname", data["firstname"]))
     if("lastname" in data):
-        dataList.append(("lastname", data["lastname"]))        
+        dataList.append(("lastname", data["lastname"]))    
+    
+    if (len(dataList) <= 0):
+        return { "error": { "message": "did not give any data to update user to the server" } }
+            
     id = session.get("user_id")
-    print(dataList)
     database.update_data_by_id_and_table(("id", id), 'users', dataList)
     return { "success": { "message": "updated user account" } }
 
@@ -144,8 +147,8 @@ def delete_caretaker_data():
 
 # gets a caretakers impaired user if they are a caretaker otherwise error if not caretaker or no set impaired user
 @user_bp.get("/impaired")
-@allow_access_if_caretaker
 @check_if_user_has_caretaker_impaired_pair
+@allow_access_if_caretaker
 def get_impaired_data():
     data = database.get_data_by_key_and_table([("caretaker_user_id", session["user_id"])], "caretaker_info", ["impaired_user_id"], True)
     impaired_user_id = (json.loads(data))["impaired_user_id"]
@@ -193,10 +196,19 @@ def get_a_emergency_contact(ec_id: int):
 
 # gets the current trip -> (Checked In Insomnia)
 @user_bp.get("/current_trip")
-@allow_access_if_impaired
 def get_current_trip():
     user_id = session.get("user_id")
-    data = database.get_data_by_key_and_table([("impaired_user_id", user_id)], "current_trip", ["to_location", "from_location"], True)
+    user_type = (json.loads(database.get_user_data(user_id)))["user_type"]
+    
+    if (user_type == 'impaired'):
+        impaired_user_id = user_id
+    elif (user_type == 'caretaker'):
+        impaired_user_id = database.get_user_id_of_impaired_if_session_user_is_their_caretaker(user_id)
+        if (impaired_user_id is None):
+             return { "error": { "message": "caretaker does not have a impaired user to look at their current trip"}}
+    
+    
+    data = database.get_data_by_key_and_table([("impaired_user_id", impaired_user_id)], "current_trip", ["to_location", "from_location"], True)
     if(data is None):
         return { "error": { "message": "user is not on a trip"}}
     return data
@@ -228,10 +240,18 @@ def delete_a_current_trip():
 
 # get all past trips -> (Checked In Insomnia)
 @user_bp.get("/past_trip")
-@allow_access_if_impaired
 def get_past_trips():
     user_id = session.get("user_id")
-    data = database.get_data_by_key_and_table([("impaired_user_id", user_id)], "past_trips", ["id", "destination_location", "complete_date"], False)
+    user_type = (json.loads(database.get_user_data(user_id)))["user_type"]
+    
+    if (user_type == 'impaired'):
+        impaired_user_id = user_id
+    elif (user_type == 'caretaker'):
+        impaired_user_id = database.get_user_id_of_impaired_if_session_user_is_their_caretaker(user_id)
+        if (impaired_user_id is None):
+             return { "error": { "message": "caretaker does not have a impaired user to look at their past trips"}}
+    
+    data = database.get_data_by_key_and_table([("impaired_user_id", impaired_user_id)], "past_trips", ["id", "destination_location", "complete_date"], False)
     if(data is None):
         return { "error": { "message": "user has no past trips"}}
     return data
@@ -250,26 +270,44 @@ def add_a_past_trip():
 
 # get a past trip by id -> (Checked In Insomnia)
 @user_bp.get("/past_trip/<int:pt_id>")
-@allow_access_if_impaired
 def get_a_past_trip(pt_id: int):
     user_id = session.get("user_id")
-    data = database.get_data_by_key_and_table([("impaired_user_id", user_id), ("id", pt_id)], "past_trips", ["id", "destination_location", "complete_date"], True)
+    user_type = (json.loads(database.get_user_data(user_id)))["user_type"]
+    
+    if (user_type == 'impaired'):
+        impaired_user_id = user_id
+    elif (user_type == 'caretaker'):
+        impaired_user_id = database.get_user_id_of_impaired_if_session_user_is_their_caretaker(user_id)
+        if (impaired_user_id is None):
+             return { "error": { "message": "caretaker does not have a impaired user to look at their past trip"}}
+    
+    data = database.get_data_by_key_and_table([("impaired_user_id", impaired_user_id), ("id", pt_id)], "past_trips", ["id", "destination_location", "complete_date"], True)
     if(data is None):
         return { "error": { "message": "past trip doesn't exist"}}
     return data
 
-# get all activities
+# get all activities -> (Checked In Insomnia)
 @user_bp.get("/activity")
 def get_activities():
     user_id = session.get("user_id")
-    data = database.get_data_by_key_and_table([("impaired_user_id", user_id)], "activity", ["id", "notice_status", "small_description", "notice_date"], False)
+    user_type = (json.loads(database.get_user_data(user_id)))["user_type"]
+    
+    if (user_type == 'impaired'):
+        impaired_user_id = user_id
+    elif (user_type == 'caretaker'):
+        impaired_user_id = database.get_user_id_of_impaired_if_session_user_is_their_caretaker(user_id)
+        if (impaired_user_id is None):
+             return { "error": { "message": "caretaker does not have a impaired user to look at their activities"}}
+    
+    data = database.get_data_by_key_and_table([("impaired_user_id", impaired_user_id)], "activity", ["id", "notice_status", "small_description", "notice_date"], False)
     if(data is None):
         return { "error": { "message": "user has no activities"}}
     return data
 
-# add a activity
+# add a activity -> (Checked In Insomnia)
 # status must be Good, Okay, Bad
 @user_bp.post("/activity")
+@allow_access_if_impaired
 def add_a_activity():
     data = request.get_json()
     if("notice_status" not in data or "small_description" not in data):
@@ -282,16 +320,26 @@ def add_a_activity():
     database.add_data_by_table("activity", [("impaired_user_id", user_id), ("notice_status", ("\'" + data["notice_status"] + "\'")), ("small_description", ("\'" + data["small_description"] + "\'")), ("notice_date", "CURRENT_TIMESTAMP")])
     return { "success": { "message": "successfully added activity" } }
 
-# get a activity by id
+# get a activity by id -> (Checked In Insomnia)
 @user_bp.get("/activity/<int:a_id>")
+@allow_access_if_impaired
 def get_a_activity(a_id: int):
     user_id = session.get("user_id")
-    data = database.get_data_by_key_and_table([("impaired_user_id", user_id), ("id", a_id)], "activity", ["id", "notice_status", "small_description", "notice_date"], True)
+    user_type = (json.loads(database.get_user_data(user_id)))["user_type"]
+    
+    if (user_type == 'impaired'):
+        impaired_user_id = user_id
+    elif (user_type == 'caretaker'):
+        impaired_user_id = database.get_user_id_of_impaired_if_session_user_is_their_caretaker(user_id)
+        if (impaired_user_id is None):
+             return { "error": { "message": "caretaker does not have a impaired user to look at their activity"}}
+    
+    data = database.get_data_by_key_and_table([("impaired_user_id", impaired_user_id), ("id", a_id)], "activity", ["id", "notice_status", "small_description", "notice_date"], True)
     if(data is None):
         return { "error": { "message": "activity doesn't exist"}}
     return data
 
-# deletes a conversation
+# deletes a conversation -> (Checked In Insomnia)
 @user_bp.delete("/caretaker_conversation")
 @check_if_user_has_caretaker_impaired_pair
 def remove_current_conversation():
@@ -305,7 +353,7 @@ def remove_current_conversation():
    
     return { "success": { "message": "successfully removed conversation" } }
 
-# creates a conversation
+# creates a conversation -> (Checked In Insomnia)
 @user_bp.post("/caretaker_conversation")
 @check_if_user_has_caretaker_impaired_pair
 def create_current_conversation():
@@ -321,7 +369,7 @@ def create_current_conversation():
    
     return { "success": { "message": "successfully added conversation" } }
 
-# gets all messages of conversation
+# gets all messages of conversation -> (Checked In Insomnia)
 # use user type to detect which person is doing the messaging
 @user_bp.get("/caretaker_conversation/messages")
 @check_if_user_has_caretaker_impaired_pair
@@ -343,7 +391,7 @@ def get_conversation_messages():
         return { "error": { "message": "user has no messages in existing current conversation"}}
     return data
 
-# adds a message to conversation
+# adds a message to conversation -> (Checked In Insomnia)
 @user_bp.post("/caretaker_conversation/messages")
 @check_if_user_has_caretaker_impaired_pair
 def add_message_to_conversation():
