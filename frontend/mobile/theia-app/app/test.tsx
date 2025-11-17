@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { getTestData } from "@/services/TestService"
-export default function Index() {
+
+export default function Test() {
     const [testData, setTestData] = useState<string>("Loading...")
 
     useEffect(() => {

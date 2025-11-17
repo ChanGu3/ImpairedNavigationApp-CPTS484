@@ -1,18 +1,19 @@
 import { UserContext } from "@/contexts/UserContext";
-import { Redirect } from "expo-router";
+import { Redirect, Stack } from "expo-router";
 import { useContext } from "react";
 
-
-export default function Index() {
+export default function AuthenticatedLayout() {
   const userContext = useContext(UserContext);
 
   if(userContext?.isLoggedIn) {
-    return (
-      <Redirect href="/(authenticated)/home"/>
+    return ( 
+      <Stack>
+        <Stack.Screen name="home" options={{ headerShown: false }} />
+      </Stack>
     )
   } else {
     return (
       <Redirect href="/(unauthenticated)/login"/>
-    )
+    );
   }
 }

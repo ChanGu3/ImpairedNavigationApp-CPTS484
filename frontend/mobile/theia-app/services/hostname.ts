@@ -1,0 +1,1 @@
+export const hostroot = "http://localhost:5000";
