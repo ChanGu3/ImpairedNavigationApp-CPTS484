@@ -91,13 +91,13 @@ const styles = StyleSheet.create({
   iconPlaceholder: {
     width: 60,
     height: 60,
-    backgroundColor: "black",
+    backgroundColor: "#A0A0A0",
     marginBottom: 15,
   },
   iconPlaceholderDark: {
     width: 60,
     height: 60,
-    backgroundColor: "black",
+    backgroundColor: "#A0A0A0",
     marginBottom: 15,
   },
   modeTitle: {
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     color: "black",
   },
   logoutButton: {
-    backgroundColor: "black",
+    backgroundColor: "#A0A0A0",
     paddingHorizontal: 20,
     paddingVertical: 10,
   },

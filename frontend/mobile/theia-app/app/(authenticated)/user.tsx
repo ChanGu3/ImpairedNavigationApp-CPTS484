@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   emergencyIcon: {
     width: 60,
     height: 60,
-    backgroundColor: "black",
+    backgroundColor: "#A0A0A0",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 15,
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   cameraButton: {
-    backgroundColor: "black",
+    backgroundColor: "#A0A0A0",
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     color: "black",
   },
   recentButton: {
-    backgroundColor: "black",
+    backgroundColor: "#A0A0A0",
     paddingHorizontal: 20,
     paddingVertical: 15,
     maxWidth: 300,
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   backButton: {
-    backgroundColor: "black",
+    backgroundColor: "#A0A0A0",
     margin: 20,
     paddingVertical: 10,
     alignItems: "center",
