@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   captureButton: {
-    backgroundColor: "white",
+    backgroundColor: "#A0A0A0",
     paddingHorizontal: 30,
     paddingVertical: 15,
     minWidth: 150,
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   autoDetectButton: {
-    backgroundColor: "white",
+    backgroundColor: "#A0A0A0",
     borderWidth: 2,
     borderColor: "white",
     paddingHorizontal: 20,
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   autoDetectButtonActive: {
-    backgroundColor: "black",
+    backgroundColor: "#808080",
     borderColor: "white",
   },
   autoDetectButtonText: {

@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   badge: {
-    backgroundColor: "black",
+    backgroundColor: "#A0A0A0",
     paddingHorizontal: 8,
     paddingVertical: 2,
     alignSelf: "flex-start",
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
     color: "black",
   },
   backButton: {
-    backgroundColor: "black",
+    backgroundColor: "#A0A0A0",
     margin: 20,
     paddingVertical: 10,
     alignItems: "center",
