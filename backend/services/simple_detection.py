@@ -3,6 +3,11 @@ import os
 from pathlib import Path
 from transformers import pipeline
 import transformers.utils.logging as logging
+
+# Set matplotlib backend before importing matplotlib
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+
 from helper import render_results_in_image, summarize_predictions_natural_language
 from PIL import Image
 import pyttsx3
@@ -52,8 +57,8 @@ def detect_and_save(image_path):
     # Create description
     description = summarize_predictions_natural_language(predictions)
     
-    # Save result
-    results_dir = Path("../data/detection_results")
+    # Save result - use absolute path from current working directory
+    results_dir = Path("data/detection_results")
     results_dir.mkdir(parents=True, exist_ok=True)
     
     timestamp = int(time.time())
@@ -76,6 +81,19 @@ def play_audio(text):
     except Exception as e:
         print(f"Audio error: {e}")
         print(f"Text was: {text}")
+
+def detect_only(image_path):
+    """Detect objects without saving results - for auto-detection"""
+    od_pipe = load_model()
+    
+    # Load and process image
+    image = Image.open(image_path)
+    predictions = od_pipe(image)
+    
+    # Create description only (no saving)
+    description = summarize_predictions_natural_language(predictions)
+    
+    return description, predictions
 
 def process_photo():
     try:
