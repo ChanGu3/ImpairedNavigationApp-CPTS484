@@ -82,6 +82,19 @@ def play_audio(text):
         print(f"Audio error: {e}")
         print(f"Text was: {text}")
 
+def detect_only(image_path):
+    """Detect objects without saving results - for auto-detection"""
+    od_pipe = load_model()
+    
+    # Load and process image
+    image = Image.open(image_path)
+    predictions = od_pipe(image)
+    
+    # Create description only (no saving)
+    description = summarize_predictions_natural_language(predictions)
+    
+    return description, predictions
+
 def process_photo():
     try:
         photo_path = get_latest_photo()
