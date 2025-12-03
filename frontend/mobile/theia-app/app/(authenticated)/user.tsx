@@ -1,37 +1,10 @@
 import { UserContext } from "@/contexts/UserContext";
 import { Link } from "expo-router";
-import { useContext, useState } from "react";
-import { Text, View, StyleSheet, Pressable, Alert } from "react-native";
+import { useContext } from "react";
+import { Text, View, StyleSheet, Pressable } from "react-native";
 
 export default function User() {
   const userContext = useContext(UserContext);
-  const [isDetecting, setIsDetecting] = useState(false);
-
-  const handleCameraDetection = async () => {
-    try {
-      setIsDetecting(true);
-      
-      // Call the backend camera detection endpoint
-      const response = await fetch('http://localhost:5000/api/camera/detect', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        Alert.alert("Detection Complete", result.description || "Object detection completed successfully");
-      } else {
-        Alert.alert("Error", "Failed to start camera detection");
-      }
-    } catch (error) {
-      Alert.alert("Error", "Could not connect to camera service");
-    } finally {
-      setIsDetecting(false);
-    }
-  };
 
   return (
     <View style={styles.container}>
@@ -50,15 +23,11 @@ export default function User() {
       <View style={styles.navigationSection}>
         <Text style={styles.navigationTitle}>Navigate</Text>
         <Text style={styles.navigationSubtext}>Double tap to start</Text>
-        <Pressable 
-          style={[styles.cameraButton, isDetecting && styles.cameraButtonDisabled]} 
-          onPress={handleCameraDetection}
-          disabled={isDetecting}
-        >
-          <Text style={styles.cameraButtonText}>
-            {isDetecting ? "Detecting..." : "Start Camera Detection"}
-          </Text>
-        </Pressable>
+        <Link href="/(authenticated)/camera" asChild>
+          <Pressable style={styles.cameraButton}>
+            <Text style={styles.cameraButtonText}>Navigate</Text>
+          </Pressable>
+        </Link>
       </View>
       
       <View style={styles.recentSection}>
@@ -145,9 +114,6 @@ const styles = StyleSheet.create({
     backgroundColor: "black",
     paddingHorizontal: 20,
     paddingVertical: 10,
-  },
-  cameraButtonDisabled: {
-    backgroundColor: "black",
   },
   cameraButtonText: {
     color: "white",
