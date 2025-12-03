@@ -58,7 +58,7 @@ def summarize_predictions_natural_language(predictions):
         else:
             summary[label] = 1
 
-    result_string = "In this image, there are "
+    result_string = "In front of you, there are "
     for i, (label, count) in enumerate(summary.items()):
         count_string = p.number_to_words(count)
         result_string += f"{count_string} {label}"
