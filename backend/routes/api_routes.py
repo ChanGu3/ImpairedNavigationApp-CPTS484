@@ -114,3 +114,45 @@ def process_uploaded_photo():
             "success": False,
             "error": f"Photo processing failed: {str(e)}"
         }), 500
+
+@api_bp.route('/camera/auto-detect', methods=['POST'])
+def auto_detect():
+    """Auto-detection endpoint that doesn't save images"""
+    try:
+        if 'photo' not in request.files:
+            return jsonify({"error": "No photo uploaded"}), 400
+            
+        photo_file = request.files['photo']
+        if photo_file.filename == '':
+            return jsonify({"error": "No photo selected"}), 400
+            
+        # Save temporary photo for processing only (no permanent storage)
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as temp_file:
+            photo_file.save(temp_file.name)
+            temp_path = temp_file.name
+        
+        # Load detection model if not already loaded
+        if not simple_detection:
+            return jsonify({"error": "Detection module not available"}), 500
+            
+        simple_detection.load_model()
+        
+        # Process the photo for detection only (no saving)
+        description, predictions = simple_detection.detect_only(temp_path)
+        
+        # Clean up temporary file
+        import os
+        os.unlink(temp_path)
+        
+        return jsonify({
+            "success": True,
+            "description": description,
+            "objects": [pred['label'] for pred in predictions]
+        })
+            
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Auto-detection failed: {str(e)}"
+        }), 500
