@@ -1,6 +1,6 @@
 import { UserContext } from "@/contexts/UserContext";
 import { useContext, useState } from "react";
-import { StyleProp, Text, TextInput, TextStyle, View } from "react-native";
+import { StyleProp, Text, TextInput, TextStyle, View, Button} from "react-native";
 
 export default function Login() {
   const userContext = useContext(UserContext)
@@ -44,7 +44,7 @@ export default function Login() {
         <TextInput style={inputStyle} placeholder="Email" keyboardType="email-address" value={email} onChangeText={(text) => { setEmail(text) }}></TextInput>
         <TextInput style={inputStyle} placeholder="Password" value={password} secureTextEntry={true} onChangeText={(text) => { setPassword(text) }}></TextInput>
         <Text style={{ color: "red", }}>{errorMSG}</Text>
-        <button onClick={() => { doLogin() }} style={{ borderRadius: 24, width: "50%", height: 46, cursor: "pointer", margin: 24}}>Submit</button>
+       <Button title="Submit" onPress={doLogin} />
       </View>
     </View>
   );
