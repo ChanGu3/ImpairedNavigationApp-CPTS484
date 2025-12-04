@@ -16,7 +16,7 @@ export default function Home() {
       <Text style={styles.subtitle}>Indoor Navigation</Text>
       
       <View style={styles.questionContainer}>
-        <Text style={styles.questionText}>"User mode or Caretaker mode?"</Text>
+        <Text style={styles.questionText}>User mode or Caretaker mode?</Text>
       </View>
       
       <Link href="/(authenticated)/user" asChild>

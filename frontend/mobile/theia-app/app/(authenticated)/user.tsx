@@ -1,10 +1,21 @@
 import { UserContext } from "@/contexts/UserContext";
-import { Link } from "expo-router";
-import { useContext } from "react";
+import { Link, router } from "expo-router";
+import { useContext, useState } from "react";
 import { Text, View, StyleSheet, Pressable } from "react-native";
 
 export default function User() {
   const userContext = useContext(UserContext);
+  const [lastTap, setLastTap] = useState<number>(0);
+
+  const handleEmergencyTap = () => {
+    const now = Date.now();
+    if (now - lastTap < 400) {
+      // double-tap detected → navigate to emergency chat
+      router.push("/(authenticated)/emergency");
+    } else {
+      setLastTap(now);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -12,13 +23,14 @@ export default function User() {
         <Text style={styles.statusText}>Active</Text>
       </View>
       
-      <View style={styles.emergencySection}>
+      {/* Emergency section -> double-tap to open emergency chat */}
+      <Pressable style={styles.emergencySection} onPress={handleEmergencyTap}>
         <View style={styles.emergencyIcon}>
           <Text style={styles.emergencyIconText}>!</Text>
         </View>
         <Text style={styles.emergencyTitle}>Emergency</Text>
         <Text style={styles.emergencySubtext}>Double tap for help</Text>
-      </View>
+      </Pressable>
       
       <View style={styles.navigationSection}>
         <Text style={styles.navigationTitle}>Navigate</Text>
