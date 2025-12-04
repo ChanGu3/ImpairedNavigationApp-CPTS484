@@ -1,4 +1,3 @@
-// app/(authenticated)/emergency.tsx
 import React, { useEffect, useRef } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { router } from "expo-router";
@@ -9,12 +8,12 @@ export default function EmergencyScreen() {
 
 
   useEffect(() => {
-    // 1) Speak the script, then 2) play a "tone", then 3) start 30s auto-close timer
+    // Speak the script, start 30s auto-close timer
     const script =
       "You have opened an emergency chat. If no message is received in thirty seconds, the chat will close and you will be taken back to the home screen. Please record your first message now.";
 
     const playTone = () => {
-      // Simple tone stand-in using TTS; we can swap to an audio asset later
+      // Simple tone stand-in using TTS, took out the sound for right now
       Speech.speak("");
       // Start 30s auto-close timer after the tone
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
