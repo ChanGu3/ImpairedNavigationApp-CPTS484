@@ -1,6 +1,7 @@
 import { Link } from "expo-router";
 import { useRef, useState, useEffect } from "react";
 import { Text, View, StyleSheet, Pressable, Alert } from "react-native";
+import * as Speech from "expo-speech";
 
 export default function CameraPage() {
   const [isCameraReady, setIsCameraReady] = useState(false);
@@ -28,6 +29,26 @@ export default function CameraPage() {
     }
   };
 
+  const handleCloseWindow = () => {
+    // Send message to parent before closing
+    if (window.opener) {
+      window.opener.postMessage({ type: 'CAMERA_CLOSED' }, window.location.origin);
+    } else {
+      // If not in a popup, speak directly
+      Speech.speak("Your camera is turned off", {
+        language: "en-US",
+        pitch: 1.0,
+        rate: 0.9,
+      });
+    }
+    stopCamera();
+    
+    // Close the window if it's a popup
+    if (window.opener) {
+      window.close();
+    }
+  };
+
   useEffect(() => {
     const startCamera = async () => {
       try {
@@ -38,6 +59,18 @@ export default function CameraPage() {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           setIsCameraReady(true);
+          
+          // Send message to parent window that camera is ready
+          if (window.opener) {
+            window.opener.postMessage({ type: 'CAMERA_READY' }, window.location.origin);
+          } else {
+            // If not in a popup, speak directly
+            Speech.speak("Your camera is turned on", {
+              language: "en-US",
+              pitch: 1.0,
+              rate: 0.9,
+            });
+          }
         }
       } catch (error) {
         Alert.alert("Error", "Unable to access camera. Please ensure camera permission is granted.");
@@ -46,9 +79,32 @@ export default function CameraPage() {
 
     startCamera();
 
+    // Listen for messages from parent window
+    const messageHandler = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      
+      if (event.data.type === 'CAMERA_OPENED') {
+        // Parent window has opened this camera window
+        console.log('Camera window opened by voice command');
+      }
+    };
+
+    window.addEventListener('message', messageHandler);
+
+    // Handle window closing
+    const handleBeforeUnload = () => {
+      if (window.opener) {
+        window.opener.postMessage({ type: 'CAMERA_CLOSED' }, window.location.origin);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     // Cleanup function to stop camera when component unmounts
     return () => {
       stopCamera();
+      window.removeEventListener('message', messageHandler);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []);
 
@@ -287,11 +343,17 @@ export default function CameraPage() {
           </Text>
         </Pressable>
         
-        <Link href="/(authenticated)/user" asChild>
-          <Pressable style={styles.backButton} onPress={stopCamera}>
-            <Text style={styles.backButtonText}>← Back</Text>
+        {window.opener ? (
+          <Pressable style={styles.backButton} onPress={handleCloseWindow}>
+            <Text style={styles.backButtonText}>× Close Camera</Text>
           </Pressable>
-        </Link>
+        ) : (
+          <Link href="/(authenticated)/user" asChild>
+            <Pressable style={styles.backButton} onPress={stopCamera}>
+              <Text style={styles.backButtonText}>← Back</Text>
+            </Pressable>
+          </Link>
+        )}
       </View>
     </View>
   );
