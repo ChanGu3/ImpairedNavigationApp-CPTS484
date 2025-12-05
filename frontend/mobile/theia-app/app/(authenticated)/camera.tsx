@@ -96,6 +96,20 @@ export default function CameraPage() {
       } else if (event.data.type === 'CLOSE_CAMERA_REQUEST') {
         // Close camera window on voice command
         handleCloseWindow();
+      } else if (event.data.type === 'START_AUTO_DETECTION') {
+        // Start auto detection via voice command
+        if (!isAutoDetecting) {
+          startAutoDetection();
+          speakDescription("Auto detection started");
+        }
+      } else if (event.data.type === 'STOP_AUTO_DETECTION') {
+        // Stop auto detection via voice command
+        if (isAutoDetecting) {
+          stopAutoDetection();
+        }
+      } else if (event.data.type === 'START_DETECTION') {
+        // Take a single picture and detect via voice command
+        takePicture();
       }
     };
 
@@ -241,7 +255,7 @@ export default function CameraPage() {
     setLastDetectedObjects([]);
     setLastAnnouncementTime(0);
     
-    // Start auto-detection every 10 seconds
+    // Start auto-detection every 5 seconds
     autoDetectIntervalRef.current = setInterval(autoDetectObjects, 5000);
     
     // Initial detection
@@ -278,6 +292,7 @@ export default function CameraPage() {
       context?.drawImage(video, 0, 0, canvas.width, canvas.height);
       
       // Convert canvas to blob
+      /*
       canvas.toBlob(async (blob) => {
         if (!blob) {
           Alert.alert("Error", "Failed to capture image");
@@ -308,6 +323,10 @@ export default function CameraPage() {
         
         setIsTakingPhoto(false);
       }, 'image/jpeg', 0.8);
+      */
+      
+      Alert.alert("Detection", "Picture saving disabled");
+      setIsTakingPhoto(false);
       
     } catch (error) {
       Alert.alert("Error", "Failed to take picture");
@@ -349,7 +368,7 @@ export default function CameraPage() {
           disabled={!isCameraReady || isTakingPhoto}
         >
           <Text style={styles.captureButtonText}>
-            {isTakingPhoto ? "Processing..." : "Take Picture"}
+            {isTakingPhoto ? "Processing..." : "Start Detection"}
           </Text>
         </Pressable>
         
