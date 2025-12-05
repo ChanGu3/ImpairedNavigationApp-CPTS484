@@ -59,6 +59,10 @@ def get_user_status_by_id(user_id):
 # makes sure user is logged in before accessing data
 @user_bp.before_request
 def authorize():
+    # Allow OPTIONS requests (CORS preflight) without authentication
+    if request.method == 'OPTIONS':
+        return
+    
     # blocks endpoint from following this before request
     if request.endpoint == "user.get_user_status_by_id":
         return
@@ -214,6 +218,10 @@ def get_current_trip():
     return data
 
 # add a current trip if one doesn't already exist otherwise error -> (Checked In Insomnia)
+@user_bp.route("/current_trip", methods=['OPTIONS'])
+def current_trip_options():
+    return '', 200
+
 @user_bp.post("/current_trip")
 @allow_access_if_impaired
 def add_a_current_trip():

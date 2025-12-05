@@ -22,6 +22,14 @@ def setup_theia_db ():
         
         cursor.execute(insert_user_query, ('janedoe@fake.com', 'password', 'Jane', 'Doe', 'impaired'))
         cursor.execute(insert_user_query, ('philjonas@fake.com', 'password', 'Phil', 'Jonas', 'caretaker'))
+        
+        # Add emergency contact for Jane Doe
+        insert_emergency_contact_query = """
+            INSERT INTO emergency_contact (impaired_user_id, contact_name, contact_tel)
+            VALUES (?, ?, ?)
+        """
+        cursor.execute(insert_emergency_contact_query, (1, 'Sarah Johnson', '555-123-4567'))
+        
         cursor.close()
         #insert_past_trip_query = """
         #    INSERT INTO past_trips(impaired_user_id, destination_location, complete_date)
