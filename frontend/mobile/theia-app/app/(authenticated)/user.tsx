@@ -433,6 +433,45 @@ export default function User() {
     }
   };
 
+  const handleStartAutoDetection = () => {
+    if (!cameraWindowRef.current || cameraWindowRef.current.closed) {
+      speak("Camera window must be open to start auto detection");
+      setLastCommand("No camera window open");
+      return;
+    }
+    
+    // Send message to camera window to start auto detection
+    cameraWindowRef.current.postMessage({ type: 'START_AUTO_DETECTION' }, window.location.origin);
+    speak("Starting auto detection");
+    setLastCommand("Starting auto detection");
+  };
+
+  const handleStopAutoDetection = () => {
+    if (!cameraWindowRef.current || cameraWindowRef.current.closed) {
+      speak("Camera window must be open to stop auto detection");
+      setLastCommand("No camera window open");
+      return;
+    }
+    
+    // Send message to camera window to stop auto detection
+    cameraWindowRef.current.postMessage({ type: 'STOP_AUTO_DETECTION' }, window.location.origin);
+    speak("Stopping auto detection");
+    setLastCommand("Stopping auto detection");
+  };
+
+  const handleStartDetection = () => {
+    if (!cameraWindowRef.current || cameraWindowRef.current.closed) {
+      speak("Camera window must be open to start detection");
+      setLastCommand("No camera window open");
+      return;
+    }
+    
+    // Send message to camera window to take a picture and detect
+    cameraWindowRef.current.postMessage({ type: 'START_DETECTION' }, window.location.origin);
+    speak("Taking picture and detecting objects");
+    setLastCommand("Starting detection");
+  };
+
   const normalizeLocation = (location: string): string => {
     const normalized = location.toLowerCase().trim();
     
@@ -577,6 +616,12 @@ export default function User() {
       handleCloseCamera();
     } else if (lowerCommand.includes("open camera") || lowerCommand.includes("turn on camera") || lowerCommand.includes("camera mode") || lowerCommand.includes("camera")) {
       handleOpenCamera();
+    } else if (lowerCommand.includes("start auto detection")) {
+      handleStartAutoDetection();
+    } else if (lowerCommand.includes("stop auto detection")) {
+      handleStopAutoDetection();
+    } else if (lowerCommand.includes("start detection")) {
+      handleStartDetection();
     } else if (lowerCommand.includes("closest place") || lowerCommand.includes("nearest place") || lowerCommand.includes("where can i go") || lowerCommand.includes("list destinations")) {
       handleListDestinations();
     } else if (lowerCommand.includes("help") || lowerCommand.includes("what can you do")) {
@@ -693,7 +738,14 @@ export default function User() {
               "no camera window is open",
               "no camera open",
               "unable to open camera window",
-              "camera window blocked"
+              "camera window blocked",
+              "starting auto detection",
+              "stopping auto detection",
+              "taking picture and detecting objects",
+              "starting detection",
+              "camera window must be open",
+              "auto detection started",
+              "auto detection stopped"
             ];
             
             const isSystemSpeech = systemPhrases.some(phrase => lower.includes(phrase));
@@ -754,7 +806,13 @@ export default function User() {
                   "your camera is turned on",
                   "exit camera navigate mode",
                   "camera is already open",
-                  "no camera window is open"
+                  "no camera window is open",
+                  "starting auto detection",
+                  "stopping auto detection",
+                  "taking picture and detecting objects",
+                  "starting detection",
+                  "auto detection started",
+                  "auto detection stopped"
                 ];
                 
                 const isSystemSpeech = systemPhrases.some(phrase => lower.includes(phrase));
@@ -965,6 +1023,9 @@ export default function User() {
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Navigate to [place]" - Quick navigation</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Open camera" / "Camera mode" - Open camera</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Close camera" / "Exit camera" - Close camera</Text>
+            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Start auto detection" - Start auto detection (camera only)</Text>
+            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Stop auto detection" - Stop auto detection (camera only)</Text>
+            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Start detection" - Take picture and detect once (camera only)</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Stop listening" - Turn off voice commands</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "What is my recent location" - Check last destination</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Emergency contact" - Get emergency info</Text>
