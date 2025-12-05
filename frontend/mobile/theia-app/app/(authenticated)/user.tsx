@@ -468,7 +468,6 @@ export default function User() {
     
     // Send message to camera window to take a picture and detect
     cameraWindowRef.current.postMessage({ type: 'START_DETECTION' }, window.location.origin);
-    speak("Taking picture and detecting objects");
     setLastCommand("Starting detection");
   };
 
@@ -741,7 +740,6 @@ export default function User() {
               "camera window blocked",
               "starting auto detection",
               "stopping auto detection",
-              "taking picture and detecting objects",
               "starting detection",
               "camera window must be open",
               "auto detection started",
@@ -809,7 +807,6 @@ export default function User() {
                   "no camera window is open",
                   "starting auto detection",
                   "stopping auto detection",
-                  "taking picture and detecting objects",
                   "starting detection",
                   "auto detection started",
                   "auto detection stopped"

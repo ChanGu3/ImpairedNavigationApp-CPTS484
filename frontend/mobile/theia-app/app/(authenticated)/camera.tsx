@@ -292,7 +292,6 @@ export default function CameraPage() {
       context?.drawImage(video, 0, 0, canvas.width, canvas.height);
       
       // Convert canvas to blob
-      /*
       canvas.toBlob(async (blob) => {
         if (!blob) {
           Alert.alert("Error", "Failed to capture image");
@@ -323,10 +322,6 @@ export default function CameraPage() {
         
         setIsTakingPhoto(false);
       }, 'image/jpeg', 0.8);
-      */
-      
-      Alert.alert("Detection", "Picture saving disabled");
-      setIsTakingPhoto(false);
       
     } catch (error) {
       Alert.alert("Error", "Failed to take picture");
