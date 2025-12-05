@@ -916,10 +916,10 @@ export default function User() {
             restartTimeoutRef.current = null;
           }
           
-          // Only restart if user wants to be listening AND not currently navigating
-          if (isListeningRef.current && !isNavigatingRef.current) {
+          // Only restart if user wants to be listening
+          if (isListeningRef.current) {
             restartTimeoutRef.current = setTimeout(() => {
-              if (isListeningRef.current && !isNavigatingRef.current) {
+              if (isListeningRef.current) {
                 try {
                   recognition.start();
                   console.log("Recognition restarted");
