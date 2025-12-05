@@ -216,6 +216,16 @@ export default function User() {
       return;
     }
     
+    // Temporarily pause voice recognition to prevent feedback loop
+    const wasListening = isListeningRef.current;
+    if (wasListening && recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        // Ignore stop errors
+      }
+    }
+    
     speak("Opening camera");
     setLastCommand("Opening camera");
     // Open camera in a new window
@@ -267,6 +277,19 @@ export default function User() {
       speak("Unable to open camera window. Please allow pop-ups for this site.");
       setLastCommand("Camera window blocked");
     }
+    
+    // Resume voice recognition after a delay to allow TTS to finish
+    if (wasListening) {
+      setTimeout(() => {
+        if (isListeningRef.current && recognitionRef.current) {
+          try {
+            recognitionRef.current.start();
+          } catch (e) {
+            console.error("Error restarting recognition after camera open:", e);
+          }
+        }
+      }, 2000); // 2 second delay to allow TTS to complete
+    }
   };
 
   const handleCloseCamera = () => {
@@ -274,6 +297,16 @@ export default function User() {
       speak("No camera window is open");
       setLastCommand("No camera open");
       return;
+    }
+    
+    // Temporarily pause voice recognition to prevent feedback loop
+    const wasListening = isListeningRef.current;
+    if (wasListening && recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        // Ignore stop errors
+      }
     }
     
     speak("Closing camera");
@@ -289,6 +322,19 @@ export default function User() {
     
     // Clear the reference
     cameraWindowRef.current = null;
+    
+    // Resume voice recognition after a delay to allow TTS to finish
+    if (wasListening) {
+      setTimeout(() => {
+        if (isListeningRef.current && recognitionRef.current) {
+          try {
+            recognitionRef.current.start();
+          } catch (e) {
+            console.error("Error restarting recognition after camera close:", e);
+          }
+        }
+      }, 2000); // 2 second delay to allow TTS to complete
+    }
   };
 
   const normalizeLocation = (location: string): string => {
@@ -377,10 +423,10 @@ export default function User() {
         speak("Please specify a destination");
         setLastCommand("No destination specified");
       }
-    } else if (lowerCommand.includes("open camera") || lowerCommand.includes("turn on camera") || lowerCommand.includes("camera mode") || lowerCommand.includes("camera")) {
-      handleOpenCamera();
     } else if (lowerCommand.includes("close camera") || lowerCommand.includes("exit camera") || lowerCommand.includes("turn off camera")) {
       handleCloseCamera();
+    } else if (lowerCommand.includes("open camera") || lowerCommand.includes("turn on camera") || lowerCommand.includes("camera mode") || lowerCommand.includes("camera")) {
+      handleOpenCamera();
     } else if (lowerCommand.includes("help") || lowerCommand.includes("what can you do")) {
       handleHelp();
     } else {
@@ -464,7 +510,16 @@ export default function User() {
               "calling emergency contact",
               "calling",
               "emergency contact:",
-              "no emergency contacts found"
+              "no emergency contacts found",
+              "opening camera",
+              "closing camera",
+              "your camera is turned on",
+              "exit camera navigate mode",
+              "camera is already open",
+              "no camera window is open",
+              "no camera open",
+              "unable to open camera window",
+              "camera window blocked"
             ];
             
             const isSystemSpeech = systemPhrases.some(phrase => lower.includes(phrase));
@@ -502,7 +557,13 @@ export default function User() {
                   "turn left in",
                   "continue straight",
                   "you have arrived",
-                  "you are approaching"
+                  "you are approaching",
+                  "opening camera",
+                  "closing camera",
+                  "your camera is turned on",
+                  "exit camera navigate mode",
+                  "camera is already open",
+                  "no camera window is open"
                 ];
                 
                 const isSystemSpeech = systemPhrases.some(phrase => lower.includes(phrase));
