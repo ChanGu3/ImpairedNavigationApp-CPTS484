@@ -1,13 +1,16 @@
 import { UserContext } from "@/contexts/UserContext";
 import { Link } from "expo-router";
 import { useContext, useEffect, useRef, useState } from "react";
-import { Text, View, StyleSheet, Pressable, ScrollView, Animated, Platform, Modal } from "react-native";
+import { Text, View, StyleSheet, Pressable, ScrollView, Animated, Platform, Modal, Dimensions, useWindowDimensions } from "react-native";
 import * as Speech from "expo-speech";
 import { TripService, PastTrip } from "@/services/TripService";
 import { EmergencyContactService, EmergencyContact } from "@/services/EmergencyContactService";
 
 export default function User() {
   const userContext = useContext(UserContext);
+  const { width } = useWindowDimensions();
+  const isMobileView = width < 768;
+  
   const blinkAnim = useRef(new Animated.Value(1)).current;
   const [isListening, setIsListening] = useState(false);
   const [lastCommand, setLastCommand] = useState("");
@@ -15,6 +18,12 @@ export default function User() {
   const [waitingForDestination, setWaitingForDestination] = useState(false);
   const [waitingForFromLocation, setWaitingForFromLocation] = useState(false);
   const [pendingDestination, setPendingDestination] = useState("");
+  const [showCommands, setShowCommands] = useState(false);
+  
+  // Helper function to merge styles
+  const mergeStyles = (...styleArrays: any[]) => {
+    return StyleSheet.flatten(styleArrays);
+  };
   const recognitionRef = useRef<any>(null);
   
   // Use refs for immediate state tracking
@@ -94,6 +103,15 @@ export default function User() {
   };
 
   const handleStartNavigation = () => {
+    // Clear any previous waiting states first
+    setWaitingForDestination(false);
+    waitingForDestinationRef.current = false;
+    setWaitingForFromLocation(false);
+    waitingForFromLocationRef.current = false;
+    setPendingDestination("");
+    pendingDestinationRef.current = "";
+    
+    // Now start the new navigation flow
     speak("Where do you want to go?");
     setWaitingForDestination(true);
     waitingForDestinationRef.current = true;
@@ -563,70 +581,82 @@ export default function User() {
         </View>
       </Modal>
 
-      <ScrollView style={styles.container}>
-      <View style={styles.statusBar}>
+      <ScrollView style={mergeStyles(styles.container, isMobileView && styles.mobileContainer)}>
+      <View style={mergeStyles(styles.statusBar, isMobileView && styles.mobileStatusBar)}>
         <View style={styles.statusContainer}>
           <Animated.View style={[styles.statusDot, { opacity: blinkAnim }]} />
-          <Text style={styles.statusText}>
+          <Text style={mergeStyles(styles.statusText, isMobileView && styles.mobileStatusText)}>
             {isListening ? "Listening..." : isNavigating ? "Navigating..." : "Active"}
           </Text>
         </View>
       </View>
 
-      <View style={styles.voiceControlSection}>
-        <Text style={styles.voiceTitle}>Voice Control</Text>
+      <View style={mergeStyles(styles.voiceControlSection, isMobileView && styles.mobileVoiceSection)}>
+        <Text style={mergeStyles(styles.voiceTitle, isMobileView && styles.mobileVoiceTitle)}>Voice Control</Text>
         <Pressable 
-          style={[styles.voiceButton, isListening && styles.voiceButtonActive]}
+          style={mergeStyles(styles.voiceButton, isListening && styles.voiceButtonActive, isMobileView && styles.mobileVoiceButton)}
           onPress={toggleListening}
         >
-          <Text style={styles.voiceButtonText}>
+          <Text style={mergeStyles(styles.voiceButtonText, isMobileView && styles.mobileVoiceButtonText)}>
             {isListening ? "Stop Listening" : "Start Voice Commands"}
           </Text>
         </Pressable>
         {lastCommand && (
-          <Text style={styles.lastCommandText}>{lastCommand}</Text>
+          <Text style={mergeStyles(styles.lastCommandText, isMobileView && styles.mobileLastCommandText)}>{lastCommand}</Text>
         )}
-        <View style={styles.commandsBox}>
-          <Text style={styles.commandsTitle}>Available Commands:</Text>
-          <Text style={styles.commandText}>• "Start navigation" - Begin a new trip</Text>
-          <Text style={styles.commandText}>• "Stop listening" - Turn off voice commands</Text>
-          <Text style={styles.commandText}>• "What is my recent location" - Check last destination</Text>
-          <Text style={styles.commandText}>• "Emergency contact" - Get emergency info</Text>
-          <Text style={styles.commandText}>• "Navigate to [place]" - Quick navigation</Text>
-          <Text style={styles.commandNote}>Note: Wait 3 seconds after Theia's question before responding</Text>
-        </View>
-      </View>
-      <View style={styles.emergencySection}>
-        <View style={styles.emergencyIcon}>
-          <Text style={styles.emergencyIconText}>!</Text>
-        </View>
-        <Text style={styles.emergencyTitle}>Emergency</Text>
-        <Text style={styles.emergencySubtext}>Say "emergency contact" or double tap</Text>
+        
         <Pressable 
-          style={styles.quickButton}
+          style={mergeStyles(styles.commandsToggle, isMobileView && styles.mobileCommandsToggle)}
+          onPress={() => setShowCommands(!showCommands)}
+        >
+          <Text style={mergeStyles(styles.commandsToggleText, isMobileView && styles.mobileCommandsToggleText)}>
+            {showCommands ? "Hide" : "Show"} Available Commands
+          </Text>
+        </Pressable>
+        
+        {showCommands && (
+          <View style={mergeStyles(styles.commandsBox, isMobileView && styles.mobileCommandsBox)}>
+            <Text style={mergeStyles(styles.commandsTitle, isMobileView && styles.mobileCommandsTitle)}>Available Commands:</Text>
+            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Start navigation" - Begin a new trip</Text>
+            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Stop navigation" - End current trip</Text>
+            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Stop listening" - Turn off voice commands</Text>
+            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "What is my recent location" - Check last destination</Text>
+            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Emergency contact" - Get emergency info</Text>
+            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Navigate to [place]" - Quick navigation</Text>
+            <Text style={mergeStyles(styles.commandNote, isMobileView && styles.mobileCommandNote)}>Note: Wait 3 seconds after Theia's question before responding</Text>
+          </View>
+        )}
+      </View>
+      <View style={mergeStyles(styles.emergencySection, isMobileView && styles.mobileEmergencySection)}>
+        <View style={mergeStyles(styles.emergencyIcon, isMobileView && styles.mobileEmergencyIcon)}>
+          <Text style={mergeStyles(styles.emergencyIconText, isMobileView && styles.mobileEmergencyIconText)}>!</Text>
+        </View>
+        <Text style={mergeStyles(styles.emergencyTitle, isMobileView && styles.mobileEmergencyTitle)}>Emergency</Text>
+        <Text style={mergeStyles(styles.emergencySubtext, isMobileView && styles.mobileEmergencySubtext)}>Say "emergency contact" or double tap</Text>
+        <Pressable 
+          style={mergeStyles(styles.quickButton, isMobileView && styles.mobileQuickButton)}
           onPress={handleEmergencyContact}
         >
-          <Text style={styles.quickButtonText}>Get Emergency Contact</Text>
+          <Text style={mergeStyles(styles.quickButtonText, isMobileView && styles.mobileQuickButtonText)}>Get Emergency Contact</Text>
         </Pressable>
       </View>
-      <View style={styles.navigationSection}>
-        <Text style={styles.navigationTitle}>Navigate</Text>
-        <Text style={styles.navigationSubtext}>Say "start navigation" for voice guidance</Text>
+      <View style={mergeStyles(styles.navigationSection, isMobileView && styles.mobileNavigationSection)}>
+        <Text style={mergeStyles(styles.navigationTitle, isMobileView && styles.mobileNavigationTitle)}>Navigate</Text>
         <Link href="/(authenticated)/camera" asChild>
-          <Pressable style={styles.cameraButton}>
-            <Text style={styles.cameraButtonText}>Camera Navigation</Text>
+          <Pressable style={mergeStyles(styles.cameraButton, isMobileView && styles.mobileCameraButton)}>
+            <Text style={mergeStyles(styles.cameraButtonText, isMobileView && styles.mobileCameraButtonText)}>Camera Navigation</Text>
           </Pressable>
         </Link>
       </View>
       
-      <View style={styles.recentSection}>
-        <Text style={styles.recentTitle}>Recent Places</Text>
-        <Text style={styles.recentSubtext}>Say "what is my recent location"</Text>
+      <View style={mergeStyles(styles.recentSection, isMobileView && styles.mobileRecentSection)}>
+        <Text style={mergeStyles(styles.recentTitle, isMobileView && styles.mobileRecentTitle)}>Recent Places</Text>
+        <Text style={mergeStyles(styles.recentSubtext, isMobileView && styles.mobileRecentSubtext)}>Say "what is my recent location"</Text>
         <Pressable 
-          style={styles.recentButton}
+          style={mergeStyles(styles.recentButton, isMobileView && styles.mobileRecentButton)}
           onPress={handleRecentLocation}
         >
-          <Text style={styles.recentButtonText}>
+          <Text style={mergeStyles(styles.recentButtonText, isMobileView && styles.mobileRecentButtonText)}>
             View Most Recent Location
           </Text>
         </Pressable>
@@ -705,8 +735,21 @@ const styles = StyleSheet.create({
     color: "#166534",
     fontStyle: "italic",
   },
+  commandsToggle: {
+    backgroundColor: "#22c55e",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+    marginTop: 8,
+    alignSelf: "center",
+  },
+  commandsToggleText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "600",
+  },
   commandsBox: {
-    marginTop: 20,
+    marginTop: 16,
     backgroundColor: "#dcfce7",
     paddingVertical: 16,
     paddingHorizontal: 20,
@@ -740,7 +783,7 @@ const styles = StyleSheet.create({
   emergencySection: {
     backgroundColor: "#fef2f2",
     alignItems: "center",
-    paddingVertical: 50,
+    paddingVertical: 40,
     borderBottomWidth: 2,
     borderBottomColor: "#fecaca",
   },
@@ -783,7 +826,7 @@ const styles = StyleSheet.create({
   navigationSection: {
     backgroundColor: "#eff6ff",
     alignItems: "center",
-    paddingVertical: 50,
+    paddingVertical: 30,
     borderBottomWidth: 2,
     borderBottomColor: "#bfdbfe",
   },
@@ -830,8 +873,7 @@ const styles = StyleSheet.create({
   recentSection: {
     backgroundColor: "#f3f4f6",
     alignItems: "center",
-    paddingVertical: 50,
-    flex: 1,
+    paddingVertical: 30,
   },
   recentTitle: {
     fontSize: 28,
@@ -925,5 +967,133 @@ const styles = StyleSheet.create({
     color: "#888888",
     textAlign: "center",
     fontStyle: "italic",
+  },
+  
+  // Mobile Styles
+  mobileContainer: {
+    backgroundColor: "#f9fafb",
+  },
+  mobileStatusBar: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  mobileStatusText: {
+    fontSize: 18,
+  },
+  mobileVoiceSection: {
+    paddingVertical: 40,
+    paddingHorizontal: 16,
+  },
+  mobileVoiceTitle: {
+    fontSize: 32,
+    marginBottom: 20,
+  },
+  mobileVoiceButton: {
+    paddingHorizontal: 40,
+    paddingVertical: 20,
+    minWidth: 280,
+  },
+  mobileVoiceButtonText: {
+    fontSize: 20,
+  },
+  mobileLastCommandText: {
+    fontSize: 16,
+    marginTop: 16,
+  },
+  mobileCommandsToggle: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    minWidth: 160,
+  },
+  mobileCommandsToggleText: {
+    fontSize: 12,
+  },
+  mobileCommandsBox: {
+    marginTop: 24,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    width: "95%",
+    maxWidth: 380,
+  },
+  mobileCommandsTitle: {
+    fontSize: 16,
+    marginBottom: 12,
+  },
+  mobileCommandText: {
+    fontSize: 15,
+    lineHeight: 24,
+    marginBottom: 8,
+  },
+  mobileCommandNote: {
+    fontSize: 16,
+    marginTop: 16,
+  },
+  mobileEmergencySection: {
+    paddingVertical: 40,
+    paddingHorizontal: 16,
+  },
+  mobileEmergencyIcon: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    marginBottom: 24,
+  },
+  mobileEmergencyIconText: {
+    fontSize: 40,
+  },
+  mobileEmergencyTitle: {
+    fontSize: 36,
+    marginBottom: 12,
+  },
+  mobileEmergencySubtext: {
+    fontSize: 18,
+    marginBottom: 20,
+  },
+  mobileQuickButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 18,
+  },
+  mobileQuickButtonText: {
+    fontSize: 18,
+  },
+  mobileNavigationSection: {
+    paddingVertical: 40,
+    paddingHorizontal: 16,
+  },
+  mobileNavigationTitle: {
+    fontSize: 36,
+    marginBottom: 16,
+  },
+  mobileNavigationSubtext: {
+    fontSize: 18,
+    marginBottom: 24,
+  },
+  mobileCameraButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 18,
+  },
+  mobileCameraButtonText: {
+    fontSize: 20,
+  },
+  mobileRecentSection: {
+    paddingVertical: 40,
+    paddingHorizontal: 16,
+  },
+  mobileRecentTitle: {
+    fontSize: 36,
+    marginBottom: 12,
+  },
+  mobileRecentSubtext: {
+    fontSize: 16,
+    marginBottom: 24,
+  },
+  mobileRecentButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 20,
+    maxWidth: 340,
+  },
+  mobileRecentButtonText: {
+    fontSize: 18,
+    lineHeight: 26,
   },
 });
