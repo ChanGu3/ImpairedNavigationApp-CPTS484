@@ -30,22 +30,29 @@ export default function CameraPage() {
   };
 
   const handleCloseWindow = () => {
-    // Send message to parent before closing
-    if (window.opener) {
-      window.opener.postMessage({ type: 'CAMERA_CLOSED' }, window.location.origin);
+    stopCamera();
+    
+    // Send message to parent before closing (only once)
+    if (window.opener && !window.opener.closed) {
+      try {
+        window.opener.postMessage({ type: 'CAMERA_CLOSED' }, window.location.origin);
+        // Close the window after a short delay to ensure message is sent
+        setTimeout(() => {
+          window.close();
+        }, 100);
+      } catch (error) {
+        // If parent window is closed, just close this window
+        window.close();
+      }
     } else {
-      // If not in a popup, speak directly
-      Speech.speak("Your camera is turned off", {
+      // If not in a popup, speak directly and navigate away
+      Speech.speak("Exit camera navigate mode", {
         language: "en-US",
         pitch: 1.0,
         rate: 0.9,
       });
-    }
-    stopCamera();
-    
-    // Close the window if it's a popup
-    if (window.opener) {
-      window.close();
+      // Navigate back if not a popup
+      window.history.back();
     }
   };
 
@@ -86,6 +93,9 @@ export default function CameraPage() {
       if (event.data.type === 'CAMERA_OPENED') {
         // Parent window has opened this camera window
         console.log('Camera window opened by voice command');
+      } else if (event.data.type === 'CLOSE_CAMERA_REQUEST') {
+        // Close camera window on voice command
+        handleCloseWindow();
       }
     };
 

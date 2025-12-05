@@ -36,6 +36,7 @@ export default function User() {
   const consecutiveAbortsRef = useRef(0);
   const restartTimeoutRef = useRef<any>(null);
   const lastAbortTimeRef = useRef(0);
+  const cameraWindowRef = useRef<Window | null>(null);
 
   // Blink animation
   useEffect(() => {
@@ -207,6 +208,14 @@ export default function User() {
   };
 
   const handleOpenCamera = () => {
+    // If camera window already exists, just focus it
+    if (cameraWindowRef.current && !cameraWindowRef.current.closed) {
+      cameraWindowRef.current.focus();
+      speak("Camera is already open");
+      setLastCommand("Camera already open");
+      return;
+    }
+    
     speak("Opening camera");
     setLastCommand("Opening camera");
     // Open camera in a new window
@@ -216,7 +225,12 @@ export default function User() {
       'width=800,height=600,resizable=yes,scrollbars=no,toolbar=no,menubar=no'
     );
     
+    // Store reference to the camera window
+    cameraWindowRef.current = cameraWindow;
+    
     if (cameraWindow) {
+      let hasSpokenCloseMessage = false; // Flag to prevent duplicate audio
+      
       // Send a message to the camera window when it loads
       cameraWindow.addEventListener('load', () => {
         cameraWindow.postMessage({ type: 'CAMERA_OPENED' }, window.location.origin);
@@ -228,8 +242,9 @@ export default function User() {
         
         if (event.data.type === 'CAMERA_READY') {
           speak("Your camera is turned on");
-        } else if (event.data.type === 'CAMERA_CLOSED') {
-          speak("Your camera is turned off");
+        } else if (event.data.type === 'CAMERA_CLOSED' && !hasSpokenCloseMessage) {
+          hasSpokenCloseMessage = true;
+          speak("Exit camera navigate mode");
           window.removeEventListener('message', messageHandler);
         }
       };
@@ -240,7 +255,11 @@ export default function User() {
       const checkClosed = setInterval(() => {
         if (cameraWindow.closed) {
           clearInterval(checkClosed);
-          speak("Your camera is turned off");
+          cameraWindowRef.current = null; // Clear reference
+          if (!hasSpokenCloseMessage) {
+            hasSpokenCloseMessage = true;
+            speak("Exit camera navigate mode");
+          }
           window.removeEventListener('message', messageHandler);
         }
       }, 1000);
@@ -248,6 +267,28 @@ export default function User() {
       speak("Unable to open camera window. Please allow pop-ups for this site.");
       setLastCommand("Camera window blocked");
     }
+  };
+
+  const handleCloseCamera = () => {
+    if (!cameraWindowRef.current || cameraWindowRef.current.closed) {
+      speak("No camera window is open");
+      setLastCommand("No camera open");
+      return;
+    }
+    
+    speak("Closing camera");
+    setLastCommand("Closing camera");
+    
+    // Send message directly to the camera window
+    try {
+      cameraWindowRef.current.postMessage({ type: 'CLOSE_CAMERA_REQUEST' }, window.location.origin);
+    } catch (error) {
+      // If postMessage fails, try to close directly
+      cameraWindowRef.current.close();
+    }
+    
+    // Clear the reference
+    cameraWindowRef.current = null;
   };
 
   const normalizeLocation = (location: string): string => {
@@ -336,8 +377,10 @@ export default function User() {
         speak("Please specify a destination");
         setLastCommand("No destination specified");
       }
-    } else if (lowerCommand.includes("open camera") || lowerCommand.includes("camera")) {
+    } else if (lowerCommand.includes("open camera") || lowerCommand.includes("turn on camera") || lowerCommand.includes("camera mode") || lowerCommand.includes("camera")) {
       handleOpenCamera();
+    } else if (lowerCommand.includes("close camera") || lowerCommand.includes("exit camera") || lowerCommand.includes("turn off camera")) {
+      handleCloseCamera();
     } else if (lowerCommand.includes("help") || lowerCommand.includes("what can you do")) {
       handleHelp();
     } else {
@@ -665,7 +708,8 @@ export default function User() {
             <Text style={mergeStyles(styles.commandsTitle, isMobileView && styles.mobileCommandsTitle)}>Available Commands:</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Start navigation" - Begin a new trip</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Stop navigation" - End current trip</Text>
-            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Open camera" - Open camera in new window</Text>
+            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Open camera" / "Camera mode" - Open camera</Text>
+            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Close camera" / "Exit camera" - Close camera</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Stop listening" - Turn off voice commands</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "What is my recent location" - Check last destination</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Emergency contact" - Get emergency info</Text>
