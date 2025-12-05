@@ -5,6 +5,7 @@ import { Text, View, StyleSheet, Pressable, ScrollView, Animated, Platform, Moda
 import * as Speech from "expo-speech";
 import { TripService, PastTrip } from "@/services/TripService";
 import { EmergencyContactService, EmergencyContact } from "@/services/EmergencyContactService";
+import { GPSNavigationService, Route, Location } from "@/services/GPSNavigationService";
 
 export default function User() {
   const userContext = useContext(UserContext);
@@ -17,6 +18,7 @@ export default function User() {
   const [isNavigating, setIsNavigating] = useState(false);
   const [waitingForDestination, setWaitingForDestination] = useState(false);
   const [waitingForFromLocation, setWaitingForFromLocation] = useState(false);
+  const [waitingForNext, setWaitingForNext] = useState(false);
   const [pendingDestination, setPendingDestination] = useState("");
   const [showCommands, setShowCommands] = useState(false);
   
@@ -29,6 +31,7 @@ export default function User() {
   // Use refs for immediate state tracking
   const waitingForDestinationRef = useRef(false);
   const waitingForFromLocationRef = useRef(false);
+  const waitingForNextRef = useRef(false);
   const pendingDestinationRef = useRef("");
   const isNavigatingRef = useRef(false);
   const isListeningRef = useRef(false);
@@ -58,6 +61,11 @@ export default function User() {
 
     return () => blinkAnimation.stop();
   }, []);
+
+  // Sync refs with state
+  useEffect(() => {
+    waitingForNextRef.current = waitingForNext;
+  }, [waitingForNext]);
 
   // Voice command handlers
   const speak = (text: string) => {
@@ -117,6 +125,21 @@ export default function User() {
     setWaitingForDestination(true);
     waitingForDestinationRef.current = true;
     setLastCommand("Waiting for destination...");
+    
+    // Set a timeout to reset waiting states if no response
+    setTimeout(() => {
+      if (waitingForDestinationRef.current || waitingForFromLocationRef.current) {
+        console.log("Navigation input timeout");
+        setWaitingForDestination(false);
+        waitingForDestinationRef.current = false;
+        setWaitingForFromLocation(false);
+        waitingForFromLocationRef.current = false;
+        setPendingDestination("");
+        pendingDestinationRef.current = "";
+        speak("Navigation cancelled due to no response");
+        setLastCommand("Navigation cancelled - timeout");
+      }
+    }, 30000); // 30 second timeout
   };
 
   const handleStopNavigation = async () => {
@@ -124,6 +147,7 @@ export default function User() {
     if (isNavigatingRef.current || isNavigating) {
       isNavigatingRef.current = false;
       setIsNavigating(false);
+      setWaitingForNext(false);
       await TripService.endTrip();
       speak("Navigation stopped");
       setLastCommand("Navigation stopped");
@@ -133,16 +157,9 @@ export default function User() {
     }
   };
 
-  const simulateNavigationDirections = async (fromLocation: string, toLocation: string) => {
-    const directions = [
-      "Starting navigation",
-      "Turn right in 5 steps",
-      "Continue straight for 10 steps",
-      "Turn left in 3 steps",
-      "Walk forward 8 steps",
-      "You are approaching your destination",
-      "You have arrived"
-    ];
+  const simulateNavigationDirections = async (route: Route, destinationDisplayName: string) => {
+    // Generate dynamic instructions from route waypoints
+    const directions = GPSNavigationService.generateNavigationInstructions(route, destinationDisplayName);
 
     for (let i = 0; i < directions.length; i++) {
       // Check ref for immediate state
@@ -151,13 +168,39 @@ export default function User() {
         break;
       }
       
-      // Speak the direction
-      speak(directions[i]);
-      setLastCommand(directions[i]);
+      // Use speech callback to update text when speech actually starts
+      await new Promise<void>((resolve) => {
+        Speech.speak(directions[i], {
+          onStart: () => {
+            // Update text display exactly when speech starts
+            setLastCommand(directions[i]);
+          },
+          onDone: () => {
+            resolve();
+          },
+          onStopped: () => {
+            resolve();
+          },
+          onError: () => {
+            resolve();
+          }
+        });
+      });
       
-      // Wait 5 seconds before next direction (except for last one)
+      // After each instruction (except the last one), wait for user to say "next"
       if (i < directions.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        console.log("Setting waitingForNext to true for step", i);
+        setWaitingForNext(true);
+        waitingForNextRef.current = true; // Set ref immediately for synchronization
+        setLastCommand(`${directions[i]} - Say "next" when ready to continue`);
+        
+        console.log("Starting wait loop for next command");
+        // Wait for user to say "next" - keep checking until waitingForNext becomes false
+        while (waitingForNextRef.current && isNavigatingRef.current) {
+          console.log("Waiting for next command, waitingForNextRef.current:", waitingForNextRef.current);
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        console.log("Exited wait loop, continuing to next step");
       }
     }
 
@@ -165,11 +208,28 @@ export default function User() {
     if (isNavigatingRef.current) {
       // End the trip and add to past trips
       await TripService.endTrip();
-      await TripService.addToPastTrips(toLocation);
+      await TripService.addToPastTrips(destinationDisplayName);
       isNavigatingRef.current = false;
       setIsNavigating(false);
-      speak(`Trip to ${toLocation} completed`);
-      setLastCommand(`Trip completed: ${toLocation}`);
+      const completionMessage = `Trip to ${destinationDisplayName} completed`;
+      
+      // Use speech callback for completion message too
+      await new Promise<void>((resolve) => {
+        Speech.speak(completionMessage, {
+          onStart: () => {
+            setLastCommand(completionMessage);
+          },
+          onDone: () => {
+            resolve();
+          },
+          onStopped: () => {
+            resolve();
+          },
+          onError: () => {
+            resolve();
+          }
+        });
+      });
     }
   };
 
@@ -185,17 +245,40 @@ export default function User() {
       await new Promise(resolve => setTimeout(resolve, 500));
     }
     
-    speak(`Starting trip from ${from} to ${destination}`);
-    setLastCommand(`Starting trip to ${destination}`);
+    // Use GPS navigation service to calculate route
+    const routeResult = GPSNavigationService.calculateRoute(destination, 'shortest');
+    
+    if (!routeResult.success) {
+      const error = routeResult.error || "Unable to find route to destination";
+      speak(error);
+      setLastCommand(`Navigation failed: ${error}`);
+      
+      // If destination not found, suggest closest place
+      if (error.includes("don't have GPS info")) {
+        setTimeout(() => {
+          const closestDestination = GPSNavigationService.getClosestDestination();
+          if (closestDestination) {
+            speak(`The closest place is ${closestDestination.displayName}`);
+          }
+        }, 2000);
+      }
+      return;
+    }
+    
+    const { route, location } = routeResult;
+    const destinationDisplayName = location!.displayName;
+    
+    speak(`Starting trip from ${from} to ${destinationDisplayName}. Using ${route!.name} - approximately ${route!.estimatedSteps} steps.`);
+    setLastCommand(`Starting trip to ${destinationDisplayName} (${route!.estimatedSteps} steps)`);
     
     // Start the trip in the database
-    const started = await TripService.startTrip(from, destination);
+    const started = await TripService.startTrip(from, destinationDisplayName);
     
     if (started) {
       isNavigatingRef.current = true;
       setIsNavigating(true);
-      // Simulate navigation with directions (runs in background)
-      await simulateNavigationDirections(from, destination);
+      // Navigate using the calculated route
+      await simulateNavigationDirections(route!, destinationDisplayName);
     } else {
       speak("Could not start navigation");
       setLastCommand("Navigation failed");
@@ -205,6 +288,17 @@ export default function User() {
   const handleHelp = () => {
     speak("Check the voice control section for available commands");
     setLastCommand("Commands listed on screen");
+  };
+
+  const handleListDestinations = () => {
+    const closestDestination = GPSNavigationService.getClosestDestination();
+    if (closestDestination) {
+      speak(`The closest place is ${closestDestination.displayName}`);
+      setLastCommand(`Closest: ${closestDestination.displayName}`);
+    } else {
+      speak("No destinations are currently available");
+      setLastCommand("No destinations available");
+    }
   };
 
   const handleOpenCamera = () => {
@@ -340,8 +434,20 @@ export default function User() {
   const normalizeLocation = (location: string): string => {
     const normalized = location.toLowerCase().trim();
     
-    // Handle common location variations
+    // First check if it's a known GPS location
+    const gpsLocation = GPSNavigationService.findLocation(normalized);
+    if (gpsLocation) {
+      return gpsLocation.displayName;
+    }
+    
+    // Handle common location variations and aliases
     const locationMap: { [key: string]: string } = {
+      'school': 'School',
+      'the school': 'School',
+      'building a': 'School',
+      'building': 'School',
+      'a building': 'School',
+      'the building': 'School',
       'work': 'Work',
       'working': 'Work',
       'office': 'Work',
@@ -352,6 +458,9 @@ export default function User() {
       'store': 'Store',
       'shop': 'Store',
       'shopping': 'Store',
+      'current location': 'Current Location',
+      'here': 'Current Location',
+      'my location': 'Current Location',
     };
     
     // Check for exact matches first
@@ -373,14 +482,34 @@ export default function User() {
   const processCommand = (command: string) => {
     const lowerCommand = command.toLowerCase().trim();
     
-    console.log("Processing command:", command);
+    console.log("=== Processing command ===");
+    console.log("Original:", command);
+    console.log("Lower:", lowerCommand);
     console.log("Waiting for destination (ref):", waitingForDestinationRef.current);
     console.log("Waiting for from location (ref):", waitingForFromLocationRef.current);
+    console.log("Waiting for next (ref):", waitingForNextRef.current);
+    console.log("Current states - waitingForNext:", waitingForNext, "isNavigating:", isNavigating);
     
     // Handle voice input for destination
     if (waitingForDestinationRef.current) {
+      // Validate that we have a non-empty command
+      if (!command.trim()) {
+        console.log("Empty destination command, ignoring");
+        return;
+      }
+      
       const destination = normalizeLocation(command);
       console.log("Recognized destination:", destination);
+      
+      // Check if the destination exists in our GPS system
+      const routeCheck = GPSNavigationService.calculateRoute(destination, 'shortest');
+      if (!routeCheck.success) {
+        speak(routeCheck.error || "Sorry, I don't recognize that destination");
+        setLastCommand(`Unknown destination: ${destination}`);
+        // Don't change waiting states, let user try again
+        return;
+      }
+      
       setPendingDestination(destination);
       pendingDestinationRef.current = destination;
       setWaitingForDestination(false);
@@ -394,8 +523,24 @@ export default function User() {
     
     // Handle voice input for from location
     if (waitingForFromLocationRef.current) {
+      // Validate that we have a non-empty command
+      if (!command.trim()) {
+        console.log("Empty from location command, ignoring");
+        return;
+      }
+      
       const fromLocation = normalizeLocation(command);
       console.log("Recognized from location:", fromLocation);
+      
+      // Validate we still have a pending destination
+      if (!pendingDestinationRef.current) {
+        speak("Sorry, I lost track of your destination. Please start over.");
+        setWaitingForFromLocation(false);
+        waitingForFromLocationRef.current = false;
+        setLastCommand("Navigation cancelled - no destination");
+        return;
+      }
+      
       setWaitingForFromLocation(false);
       waitingForFromLocationRef.current = false;
       setLastCommand(`Starting trip from ${fromLocation} to ${pendingDestinationRef.current}`);
@@ -415,6 +560,23 @@ export default function User() {
       handleStartNavigation();
     } else if (lowerCommand.includes("stop navigation") || lowerCommand.includes("end navigation")) {
       handleStopNavigation();
+    } else if (lowerCommand.includes("next") || lowerCommand.includes("continue") || lowerCommand === "next") {
+      console.log("Next command received, original command:", command);
+      console.log("Lower command:", lowerCommand);
+      console.log("Current waitingForNext state:", waitingForNext);
+      console.log("Current waitingForNextRef:", waitingForNextRef.current);
+      
+      if (waitingForNext || waitingForNextRef.current) {
+        console.log("Setting waitingForNext to false and updating ref immediately");
+        setWaitingForNext(false);
+        waitingForNextRef.current = false;  // Update ref immediately
+        setLastCommand('Continuing to next step');
+        speak('Continuing to next step');
+      } else {
+        console.log("Not currently waiting for next - current navigation state:", isNavigating);
+        setLastCommand('Not waiting for next command');
+        speak('Not waiting for next command');
+      }
     } else if (lowerCommand.includes("navigate to")) {
       const destination = lowerCommand.split("navigate to")[1].trim();
       if (destination) {
@@ -427,6 +589,8 @@ export default function User() {
       handleCloseCamera();
     } else if (lowerCommand.includes("open camera") || lowerCommand.includes("turn on camera") || lowerCommand.includes("camera mode") || lowerCommand.includes("camera")) {
       handleOpenCamera();
+    } else if (lowerCommand.includes("closest place") || lowerCommand.includes("nearest place") || lowerCommand.includes("where can i go") || lowerCommand.includes("list destinations")) {
+      handleListDestinations();
     } else if (lowerCommand.includes("help") || lowerCommand.includes("what can you do")) {
       handleHelp();
     } else {
@@ -480,10 +644,19 @@ export default function User() {
             const transcript = finalTranscript.trim();
             console.log("Final transcript:", transcript);
             
-            // Priority check for stop navigation - always allow this command
-            const lower = transcript.toLowerCase();
+            // Priority checks - always allow these commands
+            const lower = transcript.toLowerCase().trim();
             if (lower.includes("stop navigation") || lower.includes("end navigation")) {
               console.log("Stop navigation command detected");
+              setLastCommand(`Heard: ${transcript}`);
+              processCommand(transcript);
+              lastInterimTranscript = "";
+              return;
+            }
+            
+            // Priority check for next command when waiting
+            if ((lower.includes("next") || lower === "next" || lower.includes("continue")) && waitingForNextRef.current) {
+              console.log("Next command detected while waiting for next");
               setLastCommand(`Heard: ${transcript}`);
               processCommand(transcript);
               lastInterimTranscript = "";
@@ -495,6 +668,17 @@ export default function User() {
               "where do you want to go",
               "where are you starting from",
               "starting trip from",
+              "starting navigation from",
+              "head northeast for",
+              "head east for",
+              "head north for",
+              "head south for",
+              "head west for",
+              "head northwest for",
+              "head southeast for",
+              "head southwest for",
+              "steps ahead",
+              "say next when ready",
               "turn right in",
               "turn left in",
               "continue straight for",
@@ -504,6 +688,8 @@ export default function User() {
               "trip to",
               "completed",
               "navigation stopped",
+              "continuing to next step",
+              "not waiting for next command",
               "checking your most recent location",
               "your most recent location was",
               "no recent locations found",
@@ -769,12 +955,14 @@ export default function User() {
             <Text style={mergeStyles(styles.commandsTitle, isMobileView && styles.mobileCommandsTitle)}>Available Commands:</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Start navigation" - Begin a new trip</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Stop navigation" - End current trip</Text>
+            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Next" - Continue to next navigation step</Text>
+            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Closest place" - Find nearest destination</Text>
+            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Navigate to [place]" - Quick navigation</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Open camera" / "Camera mode" - Open camera</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Close camera" / "Exit camera" - Close camera</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Stop listening" - Turn off voice commands</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "What is my recent location" - Check last destination</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Emergency contact" - Get emergency info</Text>
-            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Navigate to [place]" - Quick navigation</Text>
             <Text style={mergeStyles(styles.commandNote, isMobileView && styles.mobileCommandNote)}>Note: Wait 3 seconds after Theia's question before responding</Text>
           </View>
         )}
