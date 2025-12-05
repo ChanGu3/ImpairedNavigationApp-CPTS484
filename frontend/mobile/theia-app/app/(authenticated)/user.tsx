@@ -206,6 +206,50 @@ export default function User() {
     setLastCommand("Commands listed on screen");
   };
 
+  const handleOpenCamera = () => {
+    speak("Opening camera");
+    setLastCommand("Opening camera");
+    // Open camera in a new window
+    const cameraWindow = window.open(
+      window.location.origin + '/(authenticated)/camera',
+      'cameraWindow',
+      'width=800,height=600,resizable=yes,scrollbars=no,toolbar=no,menubar=no'
+    );
+    
+    if (cameraWindow) {
+      // Send a message to the camera window when it loads
+      cameraWindow.addEventListener('load', () => {
+        cameraWindow.postMessage({ type: 'CAMERA_OPENED' }, window.location.origin);
+      });
+      
+      // Listen for messages from the camera window
+      const messageHandler = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        
+        if (event.data.type === 'CAMERA_READY') {
+          speak("Your camera is turned on");
+        } else if (event.data.type === 'CAMERA_CLOSED') {
+          speak("Your camera is turned off");
+          window.removeEventListener('message', messageHandler);
+        }
+      };
+      
+      window.addEventListener('message', messageHandler);
+      
+      // Check if window was closed
+      const checkClosed = setInterval(() => {
+        if (cameraWindow.closed) {
+          clearInterval(checkClosed);
+          speak("Your camera is turned off");
+          window.removeEventListener('message', messageHandler);
+        }
+      }, 1000);
+    } else {
+      speak("Unable to open camera window. Please allow pop-ups for this site.");
+      setLastCommand("Camera window blocked");
+    }
+  };
+
   const normalizeLocation = (location: string): string => {
     const normalized = location.toLowerCase().trim();
     
@@ -292,6 +336,8 @@ export default function User() {
         speak("Please specify a destination");
         setLastCommand("No destination specified");
       }
+    } else if (lowerCommand.includes("open camera") || lowerCommand.includes("camera")) {
+      handleOpenCamera();
     } else if (lowerCommand.includes("help") || lowerCommand.includes("what can you do")) {
       handleHelp();
     } else {
@@ -313,7 +359,7 @@ export default function User() {
         recognition.lang = "en-US";
         recognition.maxAlternatives = 3; // Get multiple alternatives
 
-        let finalTranscriptTimeout: NodeJS.Timeout | null = null;
+        let finalTranscriptTimeout: number | null = null;
         let lastInterimTranscript = "";
 
         recognition.onstart = () => {
@@ -619,6 +665,7 @@ export default function User() {
             <Text style={mergeStyles(styles.commandsTitle, isMobileView && styles.mobileCommandsTitle)}>Available Commands:</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Start navigation" - Begin a new trip</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Stop navigation" - End current trip</Text>
+            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Open camera" - Open camera in new window</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Stop listening" - Turn off voice commands</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "What is my recent location" - Check last destination</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Emergency contact" - Get emergency info</Text>
