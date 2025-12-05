@@ -293,6 +293,24 @@ export default function User() {
     setLastCommand("Help: All commands explained");
   };
 
+  const handleNextButton = () => {
+    console.log("Next button clicked");
+    console.log("Current waitingForNext state:", waitingForNext);
+    console.log("Current waitingForNextRef:", waitingForNextRef.current);
+    
+    if (waitingForNext || waitingForNextRef.current) {
+      console.log("Setting waitingForNext to false and updating ref immediately");
+      setWaitingForNext(false);
+      waitingForNextRef.current = false;  // Update ref immediately
+      setLastCommand('Continuing to next step');
+      speak('Continuing to next step');
+    } else {
+      console.log("Not currently waiting for next - current navigation state:", isNavigating);
+      setLastCommand('Not waiting for next command');
+      speak('Not waiting for next command');
+    }
+  };
+
   const handleListDestinations = () => {
     const closestDestination = GPSNavigationService.getClosestDestination();
     if (closestDestination) {
@@ -1000,8 +1018,16 @@ export default function User() {
             <Text style={styles.navigationModalCommand}>
               {lastCommand}
             </Text>
+            {(waitingForNext || waitingForNextRef.current) && (
+              <Pressable 
+                style={styles.navigationModalNextButton}
+                onPress={handleNextButton}
+              >
+                <Text style={styles.navigationModalNextButtonText}>Next Step</Text>
+              </Pressable>
+            )}
             <Text style={styles.navigationModalHint}>
-              Say "stop navigation" to cancel
+              Say "stop navigation" to cancel {(waitingForNext || waitingForNextRef.current) ? '• Say "next" or tap button above' : ''}
             </Text>
           </View>
         </View>
@@ -1402,6 +1428,20 @@ const styles = StyleSheet.create({
     color: "#888888",
     textAlign: "center",
     fontStyle: "italic",
+  },
+  navigationModalNextButton: {
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginVertical: 16,
+    minWidth: 120,
+    alignItems: "center",
+  },
+  navigationModalNextButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
   
   // Mobile Styles
