@@ -96,6 +96,21 @@ export default function CameraPage() {
       } else if (event.data.type === 'CLOSE_CAMERA_REQUEST') {
         // Close camera window on voice command
         handleCloseWindow();
+      } else if (event.data.type === 'START_AUTO_DETECTION') {
+        // Start auto detection via voice command
+        if (!isAutoDetecting) {
+          startAutoDetection();
+          speakDescription("Auto detection started");
+        }
+      } else if (event.data.type === 'STOP_AUTO_DETECTION') {
+        // Stop auto detection via voice command
+        if (isAutoDetecting) {
+          stopAutoDetection();
+        }
+      } else if (event.data.type === 'START_DETECTION') {
+        // Take a single picture and detect via voice command
+        console.log('Received START_DETECTION message, calling takePicture()');
+        takePicture();
       }
     };
 
@@ -241,7 +256,7 @@ export default function CameraPage() {
     setLastDetectedObjects([]);
     setLastAnnouncementTime(0);
     
-    // Start auto-detection every 10 seconds
+    // Start auto-detection every 5 seconds
     autoDetectIntervalRef.current = setInterval(autoDetectObjects, 5000);
     
     // Initial detection
@@ -258,9 +273,14 @@ export default function CameraPage() {
   };
 
   const takePicture = async () => {
-    if (!videoRef.current || !canvasRef.current || isTakingPhoto) return;
+    console.log('takePicture called - videoRef:', !!videoRef.current, 'canvasRef:', !!canvasRef.current, 'isTakingPhoto:', isTakingPhoto);
+    if (!videoRef.current || !canvasRef.current || isTakingPhoto) {
+      console.log('takePicture early return - missing refs or already taking photo');
+      return;
+    }
 
     try {
+      console.log('Starting to take picture...');
       setIsTakingPhoto(true);
       
       // Play beep sound immediately when photo is taken
@@ -349,7 +369,7 @@ export default function CameraPage() {
           disabled={!isCameraReady || isTakingPhoto}
         >
           <Text style={styles.captureButtonText}>
-            {isTakingPhoto ? "Processing..." : "Take Picture"}
+            {isTakingPhoto ? "Processing..." : "Start Detection"}
           </Text>
         </Pressable>
         

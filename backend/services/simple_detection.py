@@ -95,6 +95,18 @@ def detect_only(image_path):
     
     return description, predictions
 
+def detect_only_from_image(image):
+    """Detect objects from PIL Image object without saving results"""
+    od_pipe = load_model()
+    
+    # Process the image directly
+    predictions = od_pipe(image)
+    
+    # Create description only (no saving)
+    description = summarize_predictions_natural_language(predictions)
+    
+    return description, predictions
+
 def process_photo():
     try:
         photo_path = get_latest_photo()
