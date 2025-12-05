@@ -379,7 +379,10 @@ export default function User() {
       setTimeout(() => {
         if (isListeningRef.current && recognitionRef.current) {
           try {
-            recognitionRef.current.start();
+            // Check if recognition is not already running before starting
+            if (recognitionRef.current.readyState === 0) { // 0 = inactive
+              recognitionRef.current.start();
+            }
           } catch (e) {
             console.error("Error restarting recognition after camera open:", e);
           }
@@ -424,7 +427,10 @@ export default function User() {
       setTimeout(() => {
         if (isListeningRef.current && recognitionRef.current) {
           try {
-            recognitionRef.current.start();
+            // Check if recognition is not already running before starting
+            if (recognitionRef.current.readyState === 0) { // 0 = inactive
+              recognitionRef.current.start();
+            }
           } catch (e) {
             console.error("Error restarting recognition after camera close:", e);
           }
@@ -467,6 +473,7 @@ export default function User() {
     }
     
     // Send message to camera window to take a picture and detect
+    console.log('Sending START_DETECTION message to camera window');
     cameraWindowRef.current.postMessage({ type: 'START_DETECTION' }, window.location.origin);
     setLastCommand("Starting detection");
   };
@@ -619,7 +626,7 @@ export default function User() {
       handleStartAutoDetection();
     } else if (lowerCommand.includes("stop auto detection")) {
       handleStopAutoDetection();
-    } else if (lowerCommand.includes("start detection")) {
+    } else if (lowerCommand.includes("start detection") || lowerCommand.includes("what's in front of me") || lowerCommand.includes("what is in front of me")) {
       handleStartDetection();
     } else if (lowerCommand.includes("closest place") || lowerCommand.includes("nearest place") || lowerCommand.includes("where can i go") || lowerCommand.includes("list destinations")) {
       handleListDestinations();
@@ -741,6 +748,9 @@ export default function User() {
               "starting auto detection",
               "stopping auto detection",
               "starting detection",
+              "what's in front of me",
+              "what is in front of me",
+              "in front of you there are",
               "camera window must be open",
               "auto detection started",
               "auto detection stopped"
@@ -808,6 +818,9 @@ export default function User() {
                   "starting auto detection",
                   "stopping auto detection",
                   "starting detection",
+                  "what's in front of me",
+                  "what is in front of me",
+                  "in front of you there are",
                   "auto detection started",
                   "auto detection stopped"
                 ];
@@ -1022,7 +1035,7 @@ export default function User() {
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Close camera" / "Exit camera" - Close camera</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Start auto detection" - Start auto detection (camera only)</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Stop auto detection" - Stop auto detection (camera only)</Text>
-            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Start detection" - Take picture and detect once (camera only)</Text>
+            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Start detection" / "What's in front of me" - Take picture and detect once (camera only)</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Stop listening" - Turn off voice commands</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "What is my recent location" - Check last destination</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Emergency contact" - Get emergency info</Text>

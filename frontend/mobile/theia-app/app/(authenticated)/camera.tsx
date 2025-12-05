@@ -109,6 +109,7 @@ export default function CameraPage() {
         }
       } else if (event.data.type === 'START_DETECTION') {
         // Take a single picture and detect via voice command
+        console.log('Received START_DETECTION message, calling takePicture()');
         takePicture();
       }
     };
@@ -272,9 +273,14 @@ export default function CameraPage() {
   };
 
   const takePicture = async () => {
-    if (!videoRef.current || !canvasRef.current || isTakingPhoto) return;
+    console.log('takePicture called - videoRef:', !!videoRef.current, 'canvasRef:', !!canvasRef.current, 'isTakingPhoto:', isTakingPhoto);
+    if (!videoRef.current || !canvasRef.current || isTakingPhoto) {
+      console.log('takePicture early return - missing refs or already taking photo');
+      return;
+    }
 
     try {
+      console.log('Starting to take picture...');
       setIsTakingPhoto(true);
       
       // Play beep sound immediately when photo is taken
