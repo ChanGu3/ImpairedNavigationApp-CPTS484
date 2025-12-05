@@ -1,4 +1,3 @@
-// app/(authenticated)/emergency.tsx
 import React, { useEffect, useRef, useState } from "react";
 import {
   View,
@@ -6,14 +5,13 @@ import {
   Pressable,
   StyleSheet,
   ScrollView,
-  TextInput,
   ActivityIndicator,
   Animated,
   Easing,
-  Platform,
 } from "react-native";
 import { router } from "expo-router";
 import * as Speech from "expo-speech";
+import { useKeepAwake } from "expo-keep-awake";
 
 import {
   startConversationBetweenExistingCaretakerAndImpairedPair,
@@ -22,7 +20,7 @@ import {
   stopConversationBetweenExistingCaretakerAndImpairedPair,
 } from "@/services/UserService";
 
-// ---- SAFE LOAD of react-native-voice (prevents Expo Go crash) ----
+// load react-native-voice 
 type RNVoice = {
   onSpeechResults?: (e: { value?: string[] }) => void;
   onSpeechPartialResults?: (e: { value?: string[] }) => void;
@@ -36,7 +34,6 @@ type RNVoice = {
 };
 const Voice: RNVoice | null = (() => {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     return require("react-native-voice").default as RNVoice;
   } catch {
     return null;
@@ -46,15 +43,44 @@ const Voice: RNVoice | null = (() => {
 type Msg = { id: number; sender: string; msg: string };
 
 export default function EmergencyScreen() {
+  useKeepAwake();
+
+  // UI & chat state
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [lastCaretakerId, setLastCaretakerId] = useState<number | null>(null);
   const [listening, setListening] = useState(false);
 
+  // timers & flags
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
+  const startingRef = useRef(false);
+  const bufferRef = useRef<string>("");
+  const sendingRef = useRef(false);
+
+  const suppressAutoRestartRef = useRef(false); // pause mic restart during TTS
+  const firstGuidancePlayedRef = useRef(false); // speak guidance once
+
+  // emergency services confirmation flow
+  const confirmingEmergencyRef = useRef(false);      // awaiting yes/no
+  const emergencyPromptActiveRef = useRef(false);     // prompt currently speaking
+  const lastEmergencyPromptAtRef = useRef<number>(0); // debounce timestamp (ms)
+  const emergencySelectionLockRef = useRef(false);    // prevents double-log before confirm
+
+  // dedup guard (prevents repeated adds from partial/final)
+  const lastLoggedRef = useRef<{ text: string; at: number } | null>(null);
+  const shouldLogOnce = (text: string, windowMs = 1500) => {
+    const now = Date.now();
+    const last = lastLoggedRef.current;
+    if (last && last.text === text && now - last.at < windowMs) return false;
+    lastLoggedRef.current = { text, at: now };
+    return true;
+  };
+
+  // global TTS lock to avoid overlaps
+  const ttsActiveRef = useRef(false);
 
   // mic pulse anim
   const pulse = useRef(new Animated.Value(1)).current;
@@ -71,60 +97,198 @@ export default function EmergencyScreen() {
     }
   }, [listening, pulse]);
 
+  // TTS helpers 
+  const speak = (text: string): Promise<void> =>
+    new Promise((resolve) => {
+      ttsActiveRef.current = true;
+      Speech.speak(text, {
+        onDone: () => {
+          ttsActiveRef.current = false;
+          resolve();
+        },
+      });
+    });
+
+  const speakQueue = async (lines: string[]) => {
+    for (const line of lines) {
+      if (!line?.trim()) continue;
+      await speak(line);
+    }
+  };
+
+  // lifecycle & voice handlers
   useEffect(() => {
     mountedRef.current = true;
 
-    // ---- Voice event handlers (only if Voice is available) ----
+    const EMERGENCY_REGEX = /\bemergency services\b/i;
+
+    const triggerEmergencyPrompt = async () => {
+      const now = Date.now();
+      if (emergencyPromptActiveRef.current) return;
+      if (now - lastEmergencyPromptAtRef.current < 2000) return;
+
+      lastEmergencyPromptAtRef.current = now;
+      emergencyPromptActiveRef.current = true;
+      confirmingEmergencyRef.current = true;
+
+      // stop mic & current TTS before the prompt
+      suppressAutoRestartRef.current = true;
+      if (Voice) { try { await Voice.stop?.(); } catch {} }
+      Speech.stop();
+
+      await speak("You have selected emergency services, please confirm this option with yes or no. If yes, you will be connected to a 911 call.");
+
+      emergencyPromptActiveRef.current = false;
+      suppressAutoRestartRef.current = false;
+      setTimeout(() => { void startListening(); }, 500);
+    };
+
     if (Voice) {
-      Voice.onSpeechPartialResults = (e) => {
-        const t = (e?.value?.[0] || "").trim();
+      const handleSpeech = async (raw: string) => {
+        const t = (raw || "").trim();
         if (!t) return;
-        setDraft(t);
+
+        const tl = t.toLowerCase();
+
+        // detect "emergency services", log once, then prompt
+        if (!confirmingEmergencyRef.current && EMERGENCY_REGEX.test(t)) {
+          if (emergencySelectionLockRef.current) return; // already handling
+          if (!shouldLogOnce(t)) return; // dedup same phrase burst
+
+          emergencySelectionLockRef.current = true;
+
+          suppressAutoRestartRef.current = true;
+          if (Voice) { try { await Voice.stop?.(); } catch {} }
+          Speech.stop();
+
+          await actuallySend(t, false /* don't restart yet */);
+          await triggerEmergencyPrompt();
+
+          // allow future emergency selections after confirm cycle finishes
+          return;
+        }
+
+        // if confirming emergency services: listen for yes/no only
+        if (confirmingEmergencyRef.current) {
+          if (/\byes\b/i.test(tl)) {
+            if (!shouldLogOnce("Yes")) return; // avoid duplicates
+            confirmingEmergencyRef.current = false;
+            emergencySelectionLockRef.current = false;
+
+            suppressAutoRestartRef.current = true;
+            if (Voice) { try { await Voice.stop?.(); } catch {} }
+            Speech.stop();
+            await actuallySend("Yes", false);
+            await speak("Simulating 911 connection. Please stay calm while we connect you.");
+
+            suppressAutoRestartRef.current = false;
+            setTimeout(() => { void startListening(); }, 2000);
+            return;
+          }
+          if (/\bno\b/i.test(tl)) {
+            if (!shouldLogOnce("No")) return; // avoid duplicates
+            confirmingEmergencyRef.current = false;
+            emergencySelectionLockRef.current = false;
+
+            suppressAutoRestartRef.current = true;
+            if (Voice) { try { await Voice.stop?.(); } catch {} }
+            Speech.stop();
+            await actuallySend("No", false);
+            await speak("Emergency services canceled. Returning to chat.");
+
+            suppressAutoRestartRef.current = false;
+            setTimeout(() => { void startListening(); }, 500);
+            return;
+          }
+          // neither yes nor no: keep listening, ignore normal flow
+          return;
+        }
+
+        // normal dictation: strip trailing "send"
+        const endsWithSend = /\bsend\b\.?$/i.test(t);
+        const cleaned = t.replace(/[\s,]*\bsend\b\.?$/i, "").trim();
+
+        bufferRef.current = cleaned;
+        setDraft(cleaned);
+
+        if (endsWithSend) {
+          const toSend = cleaned || bufferRef.current;
+          if (toSend && !sendingRef.current) {
+            // dedup same text burst 
+            if (!shouldLogOnce(toSend)) {
+              setDraft("");
+              return;
+            }
+
+            sendingRef.current = true;
+            setDraft("");
+            bufferRef.current = "";
+
+            if (Voice) { try { await Voice.stop?.(); } catch {} }
+            Speech.stop();
+            suppressAutoRestartRef.current = true;
+
+            await actuallySend(toSend, true /* restart after guidance */);
+            sendingRef.current = false;
+          } else {
+            setDraft("");
+          }
+        }
+      };
+
+      Voice.onSpeechPartialResults = (e) => {
+        const val = e?.value?.[0];
+        if (typeof val === "string") void handleSpeech(val);
       };
       Voice.onSpeechResults = (e) => {
-        const t = (e?.value?.[0] || "").trim();
-        if (!t) return;
-        setDraft(t);
+        const val = e?.value?.[0];
+        if (typeof val === "string") void handleSpeech(val);
       };
+
       Voice.onSpeechEnd = () => {
         setListening(false);
-        void handleDraftAutoSend();
-        if (mountedRef.current) setTimeout(() => void startListening(), 250);
+        if (mountedRef.current && !suppressAutoRestartRef.current) {
+          setTimeout(() => { void startListening(); }, 400);
+        }
       };
       Voice.onSpeechError = () => {
         setListening(false);
-        if (mountedRef.current) setTimeout(() => void startListening(), 500);
+        if (mountedRef.current && !suppressAutoRestartRef.current) {
+          setTimeout(() => { void startListening(); }, 700);
+        }
       };
     }
 
-    const run = async () => {
+    const init = async () => {
       try {
         await startConversationBetweenExistingCaretakerAndImpairedPair();
       } catch {}
       setLoading(false);
 
-      const script =
-        "You have opened an emergency chat. If no message is received in thirty seconds, the chat will close and you will be taken back to the home screen. Please record your first message after the tone.";
-      Speech.speak(script, {
-        onDone: () => {
-          Speech.speak("beep", {
-            onDone: () => {
-              // 30s auto-close (cancel after first send)
-              timeoutRef.current = setTimeout(() => {
-                if (!mountedRef.current) return;
-                router.replace("/(authenticated)/home");
-              }, 30_000);
-              void startListening();
-            },
-          });
-        },
-      });
+      // intro + tone: listen
+      Speech.speak(
+        "You have opened an emergency chat. If no message is received in thirty seconds, the chat will close and you will be taken back to the home screen. Please record your first message after the tone.",
+        {
+          onDone: () => {
+            Speech.speak("beep", {
+              onDone: () => {
+                // 30s auto-close (canceled on first send)
+                timeoutRef.current = setTimeout(() => {
+                  if (!mountedRef.current) return;
+                  router.replace("/(authenticated)/home");
+                }, 30_000);
+                bufferRef.current = "";
+                void startListening();
+              },
+            });
+          },
+        }
+      );
 
       await loadMessages();
       pollRef.current = setInterval(loadMessages, 5000);
     };
-
-    void run();
+    void init();
 
     return () => {
       mountedRef.current = false;
@@ -137,10 +301,9 @@ export default function EmergencyScreen() {
       }
       stopConversationBetweenExistingCaretakerAndImpairedPair().catch(() => {});
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Normalize backend messages to local shape
+  // helpers 
   function normalizeMessages(arr: any[]): Msg[] {
     return arr.map((r: any): Msg => {
       const id = Number(r.id ?? r.msg_id ?? r.cm_id ?? r.message_id ?? r.m_id ?? 0);
@@ -150,7 +313,6 @@ export default function EmergencyScreen() {
     });
   }
 
-  // Merge server messages with local optimistic (negative-id) messages
   function mergeMessages(server: Msg[], local: Msg[]): Msg[] {
     const temps = local.filter((m) => m.id < 0);
     const remainingTemps = temps.filter(
@@ -168,69 +330,107 @@ export default function EmergencyScreen() {
 
     if (mapped.length) {
       const last = mapped[mapped.length - 1];
-      if (last.sender === "caretaker" && last.id !== lastCaretakerId) {
-        setLastCaretakerId(last.id);
-        Speech.speak(last.msg);
+      // do NOT read caretaker messages while confirmation is active or other TTS is active
+      if (!confirmingEmergencyRef.current && !ttsActiveRef.current) {
+        if (last.sender === "caretaker" && last.id !== lastCaretakerId) {
+          setLastCaretakerId(last.id);
+          Speech.speak(last.msg);
+        }
       }
     }
   };
 
   const startListening = async () => {
-    // If Voice is not available (Expo Go), do nothing, keep UI running
-    if (!Voice) {
+    if (!Voice || startingRef.current) {
       setListening(false);
       return;
     }
     try {
       const ok = await Voice.isAvailable();
       if (!ok) return;
+      startingRef.current = true;
       setListening(true);
-      setDraft("");
       await Voice.start("en-US");
     } catch {
       setListening(false);
+    } finally {
+      startingRef.current = false;
     }
   };
 
-  // if user finishes with "... send" → send it
-  const handleDraftAutoSend = async () => {
-    let text = draft.trim();
-    if (!/\bsend\b\.?$/i.test(text)) return;
-
-    text = text.replace(/[\s,]*\bsend\b\.?$/i, "").trim();
-    if (!text) {
-      setDraft("");
+  const playFirstGuidanceIfNeeded = async (thenRestart: boolean) => {
+    if (firstGuidancePlayedRef.current) {
+      if (thenRestart && mountedRef.current) {
+        suppressAutoRestartRef.current = false;
+        setTimeout(() => { void startListening(); }, 150);
+      }
       return;
     }
-    await actuallySend(text);
+    firstGuidancePlayedRef.current = true;
+
+    suppressAutoRestartRef.current = true;
+    Speech.stop();
+    await speakQueue([
+      "You have activated Theia's emergency chat.",
+      "We have your last known location and route information.",
+      "Would you like to speak with your caretaker or emergency services?",
+    ]);
+
+    if (thenRestart && mountedRef.current) {
+      suppressAutoRestartRef.current = false;
+      setTimeout(() => { void startListening(); }, 150);
+    }
   };
 
   // optimistic append + API + refresh
-  const actuallySend = async (text: string) => {
+  const actuallySend = async (text: string, restartAfterFlow = false) => {
+    // first send cancels the auto-close
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
 
-    const tempId = -Date.now();
+    // stronger temp id 
+    const tempId = -(Date.now() * 1000 + Math.floor(Math.random() * 1000));
     setMessages((prev) => [...prev, { id: tempId, sender: "impaired", msg: text }]);
     setDraft("");
 
     try {
       await addConversationMessagesBetweenExistingCaretakerAndImpairedPair(text);
-      Speech.speak("Message sent.");
-      setTimeout(() => void loadMessages(), 300);
+
+      Speech.stop();
+      await speak("Message sent.");
+      await playFirstGuidanceIfNeeded(restartAfterFlow);
+
+      setTimeout(() => { void loadMessages(); }, 300);
     } catch {
-      // keep optimistic message for now
+      // still provide spoken feedback + guidance for demo flow
+      Speech.stop();
+      await speak("Message sent.");
+      await playFirstGuidanceIfNeeded(restartAfterFlow);
     }
   };
 
   const sendDraftButton = async () => {
-    let text = draft.trim().replace(/[\s,]*\bsend\b\.?$/i, "").trim();
+    const text = (draft || bufferRef.current || "").trim().replace(/[\s,]*\bsend\b\.?$/i, "").trim();
     if (!text) return;
-    await actuallySend(text);
+
+    // dedup if user taps button after voice already sent same text
+    if (!shouldLogOnce(text)) {
+      setDraft("");
+      bufferRef.current = "";
+      return;
+    }
+
+    bufferRef.current = "";
+
+    if (Voice) { try { await Voice.stop?.(); } catch {} }
+    Speech.stop();
+    suppressAutoRestartRef.current = true;
+    await actuallySend(text, true /* restart after guidance */);
   };
 
+  // UI 
   if (loading) {
     return (
       <View style={styles.center}>
@@ -240,14 +440,11 @@ export default function EmergencyScreen() {
     );
   }
 
-  const inExpoGo = !Voice; // if native module missing, we are likely in Expo Go
+  const inExpoGo = !Voice;
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Emergency Chat</Text>
-      <Text style={styles.subtitle}>
-        Speak your message after the tone. Say “send” at the end to deliver it.
-      </Text>
 
       {inExpoGo && (
         <View style={styles.tip}>
@@ -257,11 +454,11 @@ export default function EmergencyScreen() {
         </View>
       )}
 
-      {/* Chat messages */}
+      {/* chat messages */}
       <ScrollView style={styles.chatBox} contentContainerStyle={{ padding: 12 }}>
-        {messages.map((m) => (
+        {messages.map((m, i) => (
           <View
-            key={m.id}
+            key={m.id ? `${m.id}-${i}` : `${i}-${m.sender}`} // unique, even if ids collide
             style={[
               styles.msg,
               m.sender === "impaired" ? styles.msgImpaired : styles.msgCaretaker,
@@ -272,7 +469,7 @@ export default function EmergencyScreen() {
         ))}
       </ScrollView>
 
-      {/* Draft + mic indicator */}
+      {/* draft + mic indicator */}
       <View style={styles.draftCard}>
         <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
           <Text style={styles.cardTitle}>Draft</Text>
@@ -283,22 +480,20 @@ export default function EmergencyScreen() {
             ]}
           />
         </View>
-        <Text style={styles.cardText}>
-          {draft ? draft : listening ? "Listening…" : inExpoGo ? "Mic unavailable in Expo Go" : "Paused"}
-        </Text>
+        <Text style={styles.cardText}>{draft ? draft : listening ? "Listening…" : "Paused"}</Text>
         <Text style={styles.hint}>Say “send” to send your message.</Text>
       </View>
 
       <View style={styles.row}>
         <Pressable
           onPress={sendDraftButton}
-          style={[styles.btn, { backgroundColor: draft ? "#43A047" : "#BDBDBD" }]}
+          style={[styles.btn, { backgroundColor: (draft || bufferRef.current) ? "#43A047" : "#BDBDBD" }]}
         >
           <Text style={styles.btnText}>Send Draft</Text>
         </Pressable>
 
         <Pressable
-          onPress={() => void startListening()}
+          onPress={() => { void startListening(); }}
           style={[styles.btn, { backgroundColor: inExpoGo ? "#BDBDBD" : "#1E88E5" }]}
           disabled={inExpoGo}
         >
