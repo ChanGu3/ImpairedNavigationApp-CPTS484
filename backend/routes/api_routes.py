@@ -79,16 +79,22 @@ def process_uploaded_photo():
         if photo_file.filename == '':
             return jsonify({"error": "No photo selected"}), 400
             
-        # Save the uploaded photo
-        photos_dir = Path("data/captured_photos")
-        photos_dir.mkdir(parents=True, exist_ok=True)
+        # Save the uploaded photo - TEMPORARILY COMMENTED OUT
+        # photos_dir = Path("data/captured_photos")
+        # photos_dir.mkdir(parents=True, exist_ok=True)
+        # 
+        # timestamp = int(time.time())
+        # photo_path = photos_dir / f"photo_{timestamp}.jpg"
+        # latest_path = photos_dir / "latest.jpg"
+        # 
+        # photo_file.save(str(photo_path))
+        # photo_file.save(str(latest_path))
         
-        timestamp = int(time.time())
-        photo_path = photos_dir / f"photo_{timestamp}.jpg"
-        latest_path = photos_dir / "latest.jpg"
-        
-        photo_file.save(str(photo_path))
-        photo_file.save(str(latest_path))
+        # Create a temporary file-like object for processing without saving
+        import io
+        from PIL import Image
+        photo_bytes = photo_file.read()
+        photo_file.seek(0)  # Reset file pointer for potential reuse
         
         # Load detection model if not already loaded
         if not simple_detection:
@@ -96,8 +102,12 @@ def process_uploaded_photo():
             
         simple_detection.load_model()
         
-        # Process the photo for detection
-        result_img, description, result_path = simple_detection.detect_and_save(photo_path)
+        # Process the photo for detection without saving - using in-memory processing
+        # result_img, description, result_path = simple_detection.detect_and_save(photo_path)
+        
+        # Use detect_only for in-memory processing
+        image = Image.open(io.BytesIO(photo_bytes))
+        description, predictions = simple_detection.detect_only_from_image(image)
         
         # Play audio narration
         simple_detection.play_audio(description)
@@ -105,8 +115,9 @@ def process_uploaded_photo():
         return jsonify({
             "success": True,
             "description": description,
-            "photo_path": str(photo_path),
-            "result_path": str(result_path)
+            # "photo_path": str(photo_path),  # Temporarily commented out
+            # "result_path": str(result_path)  # Temporarily commented out
+            "note": "Photo saving temporarily disabled"
         })
             
     except Exception as e:
