@@ -52,11 +52,9 @@ export class GPSNavigationService {
       fromLocationId: 'current_location',
       toLocationId: 'school',
       waypoints: [
-        { distance: 45, direction: 'northeast' },
-        { distance: 15, direction: 'east' },
-        { distance: 75, direction: 'north' },
-        { distance: 10, direction: 'west' },
-        { distance: 35, direction: 'north' }
+        { distance: 60, direction: 'northeast' },
+        { distance: 80, direction: 'north' },
+        { distance: 40, direction: 'north' }
       ],
       estimatedSteps: 48,
       distance: 180

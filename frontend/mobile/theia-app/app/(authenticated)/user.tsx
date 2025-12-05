@@ -122,18 +122,20 @@ export default function User() {
     
     // Now start the new navigation flow
     speak("Where do you want to go?");
-    setWaitingForDestination(true);
-    waitingForDestinationRef.current = true;
-    setLastCommand("Waiting for destination...");
+    
+    // Add a small delay before activating destination listening to prevent system speech pickup
+    setTimeout(() => {
+      setWaitingForDestination(true);
+      waitingForDestinationRef.current = true;
+      setLastCommand("Waiting for destination...");
+    }, 1500); // Wait 1.5 seconds after speaking
     
     // Set a timeout to reset waiting states if no response
     setTimeout(() => {
-      if (waitingForDestinationRef.current || waitingForFromLocationRef.current) {
+      if (waitingForDestinationRef.current) {
         console.log("Navigation input timeout");
         setWaitingForDestination(false);
         waitingForDestinationRef.current = false;
-        setWaitingForFromLocation(false);
-        waitingForFromLocationRef.current = false;
         setPendingDestination("");
         pendingDestinationRef.current = "";
         speak("Navigation cancelled due to no response");
@@ -498,6 +500,22 @@ export default function User() {
         return;
       }
       
+      // Additional check to ignore system speech that might leak through
+      const lowerCmd = command.toLowerCase().trim();
+      const systemSpeechPatterns = [
+        "where do you want",
+        "going to",
+        "starting trip",
+        "sorry i don't recognize",
+        "navigation cancelled"
+      ];
+      
+      const isSystemSpeech = systemSpeechPatterns.some(pattern => lowerCmd.includes(pattern));
+      if (isSystemSpeech || lowerCmd === "current location") {
+        console.log("Ignoring system speech during destination input:", command);
+        return;
+      }
+      
       const destination = normalizeLocation(command);
       console.log("Recognized destination:", destination);
       
@@ -510,45 +528,15 @@ export default function User() {
         return;
       }
       
-      setPendingDestination(destination);
-      pendingDestinationRef.current = destination;
+      // Start navigation immediately from current location
       setWaitingForDestination(false);
       waitingForDestinationRef.current = false;
-      setWaitingForFromLocation(true);
-      waitingForFromLocationRef.current = true;
-      speak(`Going to ${destination}. Where are you starting from?`);
-      setLastCommand(`Destination: ${destination}, waiting for start location...`);
+      setLastCommand(`Starting trip from current location to ${destination}`);
+      handleNavigateTo(destination, "Current Location");
       return;
     }
     
-    // Handle voice input for from location
-    if (waitingForFromLocationRef.current) {
-      // Validate that we have a non-empty command
-      if (!command.trim()) {
-        console.log("Empty from location command, ignoring");
-        return;
-      }
-      
-      const fromLocation = normalizeLocation(command);
-      console.log("Recognized from location:", fromLocation);
-      
-      // Validate we still have a pending destination
-      if (!pendingDestinationRef.current) {
-        speak("Sorry, I lost track of your destination. Please start over.");
-        setWaitingForFromLocation(false);
-        waitingForFromLocationRef.current = false;
-        setLastCommand("Navigation cancelled - no destination");
-        return;
-      }
-      
-      setWaitingForFromLocation(false);
-      waitingForFromLocationRef.current = false;
-      setLastCommand(`Starting trip from ${fromLocation} to ${pendingDestinationRef.current}`);
-      handleNavigateTo(pendingDestinationRef.current, fromLocation);
-      setPendingDestination("");
-      pendingDestinationRef.current = "";
-      return;
-    }
+
     
     if (lowerCommand.includes("recent location") || lowerCommand.includes("last location")) {
       handleRecentLocation();
@@ -735,10 +723,27 @@ export default function User() {
                 
                 const lower = lastInterimTranscript.toLowerCase();
                 const systemPhrases = [
+                  "starting navigation from",
+                  "head northeast for",
+                  "head north for",
+                  "head south for",
+                  "head east for",
+                  "head west for",
+                  "head northwest for",
+                  "head southeast for",
+                  "head southwest for",
+                  "steps ahead",
+                  "say next when ready",
+                  "continuing to next step",
+                  "not waiting for next command",
                   "where do you want to go",
                   "where are you starting from",
                   "going to",
-                  "starting trip",
+                  "sorry i don't recognize that destination",
+                  "navigation cancelled",
+                  "starting trip from",
+                  "current location",
+                  "school",
                   "turn right in",
                   "turn left in",
                   "continue straight",
