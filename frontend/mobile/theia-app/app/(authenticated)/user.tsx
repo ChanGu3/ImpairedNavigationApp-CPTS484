@@ -288,8 +288,9 @@ export default function User() {
   };
 
   const handleHelp = () => {
-    speak("Check the voice control section for available commands");
-    setLastCommand("Commands listed on screen");
+    const helpText = "Available voice commands: Start navigation, to begin a new trip. Stop navigation, to end current trip. Next, to continue to next navigation step. Closest place, to find nearest destination. Navigate to place, for quick navigation. Open camera or Camera mode, to open camera. Close camera or Exit camera, to close camera. Start auto detection, to start auto detection, camera only. Stop auto detection, to stop auto detection, camera only. Start detection or What's in front of me, to take picture and detect once, camera only. Stop listening, to turn off voice commands. What is my recent location, to check last destination. Emergency contact, to get emergency info. Help, to hear these commands again.";
+    speak(helpText);
+    setLastCommand("Help: All commands explained");
   };
 
   const handleListDestinations = () => {
@@ -822,7 +823,23 @@ export default function User() {
                   "what is in front of me",
                   "in front of you there are",
                   "auto detection started",
-                  "auto detection stopped"
+                  "auto detection stopped",
+                  "available voice commands",
+                  "help",
+                  "to begin a new trip",
+                  "to end current trip",
+                  "to continue to next navigation step",
+                  "to find nearest destination",
+                  "for quick navigation",
+                  "to open camera",
+                  "to close camera",
+                  "to start auto detection",
+                  "to stop auto detection",
+                  "to take picture and detect once",
+                  "to turn off voice commands",
+                  "to check last destination",
+                  "to get emergency info",
+                  "to hear these commands again"
                 ];
                 
                 const isSystemSpeech = systemPhrases.some(phrase => lower.includes(phrase));
@@ -1039,6 +1056,8 @@ export default function User() {
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Stop listening" - Turn off voice commands</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "What is my recent location" - Check last destination</Text>
             <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Emergency contact" - Get emergency info</Text>
+            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Help" - Hear all available commands</Text>
+            <Text style={mergeStyles(styles.commandText, isMobileView && styles.mobileCommandText)}>• "Help" - Hear all available commands</Text>
             <Text style={mergeStyles(styles.commandNote, isMobileView && styles.mobileCommandNote)}>Note: Wait 3 seconds after Theia's question before responding</Text>
           </View>
         )}
