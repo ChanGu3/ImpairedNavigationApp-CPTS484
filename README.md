@@ -2,10 +2,48 @@
 
 ## How To Run Backend And Front End
 
-- Step 1: Look at directory backend README.me
-- Step 2: Look at directory frontend/mobile/theia-app README.me
-- Step 3: Make Sure Both Backend and Frontend are running for them to work correctly preferably backend first then frontend since frontend depends on backend for data
-  - (Note: In the Theia application I created a test page on <http://localhost:8081/test> when running which will test the connection between backend and frontend if you have everything setup up correctly )
+### Prerequisites
+- Python 3.x installed
+- Node.js and npm installed
+
+### Backend Setup
+1. **Create and activate virtual environment** (if not already created):
+   ```powershell
+   cd ImpairedNavigationApp-CPTS484
+   python -m venv .venv
+   .venv\Scripts\Activate.ps1
+   ```
+
+2. **Install dependencies** (first time only):
+   ```powershell
+   cd backend
+   pip install -r requirements.txt
+   ```
+
+3. **Run the backend**:
+   ```powershell
+   cd ImpairedNavigationApp-CPTS484\backend 
+   & ..\.venv\Scripts\python.exe app.py
+   ```
+
+### Frontend Setup
+1. **Install dependencies** (first time only):
+   ```powershell
+   cd ImpairedNavigationApp-CPTS484\frontend\mobile\theia-app
+   npm install
+   ```
+
+2. **Run the frontend**:
+   ```powershell
+   cd ImpairedNavigationApp-CPTS484\frontend\mobile\theia-app
+   npm start
+   ```
+
+### Important Notes
+- **Always run the backend first**, then the frontend, as the frontend depends on the backend for data
+- The backend runs on `http://localhost:5000`
+- The frontend runs on `http://localhost:8081`
+- Test the connection between backend and frontend by visiting `http://localhost:8081/test` when both are running
 
 ## Two Hard Coded Accounts
 
