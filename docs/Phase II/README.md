@@ -8,4 +8,6 @@ Google Drive File Links:
 
 [Final Presentation](https://docs.google.com/presentation/d/1rgvr4OucoDYEP0e3_xtRDj-zcSMdvAI5/edit?usp=drive_link&ouid=101529064182238162039&rtpof=true&sd=true)
 
+[User Manual](https://docs.google.com/document/d/1yKPzAWHNtRsDsgGs5MCIOmHoaDb9oa5pbtQikANJLR0/edit?usp=drive_link)
+
 [WRS Final](https://docs.google.com/document/d/1ShUnR-0s5JG9U8uYtgtzhrvicq9at4BE/edit?usp=drive_link&ouid=101529064182238162039&rtpof=true&sd=true)
